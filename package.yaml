@@ -21,6 +21,12 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- aeson
+- text
+- lens
+- persistent
+- persistent-sqlite
+- persistent-template
 
 library:
   source-dirs: src
@@ -35,9 +41,6 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - quiz-server
-    - aeson
-    - lens
-    - text
 
 tests:
   quiz-server-test:
