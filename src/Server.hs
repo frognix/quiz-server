@@ -11,12 +11,13 @@ import Channels
 import Admin
 
 import qualified Network.WebSockets as WS
-import Data.Aeson (decode)
+import Data.Aeson (decode,encode)
 import Control.Monad.Extra (whenJust)
 import Control.Monad
 import Control.Exception (finally)
 import Control.Concurrent.Chan
 import Control.Concurrent (forkIO, threadDelay, myThreadId)
+import Control.Concurrent.Async (race)
 
 runServer :: IO ()
 runServer = do
@@ -44,10 +45,12 @@ clientHandler chans pending = do
           createClient channels conn
 
 createClient :: ClientChan -> WS.Connection -> IO ()
-createClient chan conn = flip finally disconnect $ WS.withPingThread conn 30 (return ()) $ forever $ do
-  msg <- decode <$> WS.receiveData conn
-  whenJust msg $ writeChan $ chan^.outChan
+createClient chans conn = flip finally disconnect $ WS.withPingThread conn 30 (return ()) $ forever $ do
+  result <- race (readChan $ chans^.inChan) (decode <$> WS.receiveData conn)
+  case result of
+    Left  msg -> WS.sendTextData conn $ encode msg
+    Right msg -> whenJust msg $ writeChan $ chans^.outChan
   where disconnect = do
-          writeChan (chan^.outChan) Disconnect
+          writeChan (chans^.outChan) Disconnect
           id <- myThreadId
           putStrLn $ "Client " ++ show id ++ " disconnected"

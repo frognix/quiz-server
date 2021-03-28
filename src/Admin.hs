@@ -71,6 +71,7 @@ adminAction (DeleteTopic title) = runSqlite dataBaseAddress $ do
 adminAction (EditTopic (AdminTopic title info questions)) = runSqlite dataBaseAddress $ do
   maybeTopic <- (fmap . fmap) entityKey . getBy $ UniqueTitle title
   topic <- maybeIf maybeTopic (insert $ Topic title info) (return . return . fromJust $ maybeTopic)
+  update topic [TopicInfo =. info]
   deleteWhere [QuestionTopicId ==. topic]
   forM_ questions $ \(AdminQuestion text answer answers) -> do
     insert $ Question text topic answer answers

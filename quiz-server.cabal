@@ -40,6 +40,7 @@ library
       src
   build-depends:
       aeson
+    , async
     , base >=4.7 && <5
     , extra
     , lens
@@ -59,6 +60,7 @@ executable quiz-server-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
+    , async
     , base >=4.7 && <5
     , extra
     , lens
@@ -80,6 +82,7 @@ test-suite quiz-server-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
+    , async
     , base >=4.7 && <5
     , extra
     , lens

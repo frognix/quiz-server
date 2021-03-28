@@ -25,6 +25,7 @@ authenticationService chans = forever $ do
       msg <- readChan $ conn^.outChan
       print msg
       putStrLn "-- End receive connect message--"
+      writeChan (conn^.inChan) (Status "Ok")
     _ -> return ()
 
 lobbyManagerService :: ServerChans -> IO ()

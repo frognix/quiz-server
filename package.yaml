@@ -29,6 +29,7 @@ dependencies:
 - persistent-sqlite
 - persistent-template
 - websockets
+- async
 
 library:
   source-dirs: src
