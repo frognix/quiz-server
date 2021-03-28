@@ -25,10 +25,15 @@ source-repository head
 
 library
   exposed-modules:
-      APIModels
+      Admin
+      AdminMessages
+      Channels
+      ClientMessages
+      ExtraTools
       Lib
       Server
       ServerDB
+      ServerMessages
       Services
   other-modules:
       Paths_quiz_server

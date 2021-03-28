@@ -1,10 +1,14 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Server where
 
 import Control.Lens
 
-import APIModels
+import ServerMessages
+import ClientMessages
 import ServerDB
 import Services
+import Channels
+import Admin
 
 import qualified Network.WebSockets as WS
 import Data.Aeson (decode)
@@ -16,6 +20,8 @@ import Control.Concurrent (forkIO, threadDelay, myThreadId)
 
 runServer :: IO ()
 runServer = do
+  initDB
+  -- fillTables
   lobbyManagerChan <- newChan
   authenticationChan <- newChan
   let chans = ServerChans authenticationChan lobbyManagerChan
@@ -25,17 +31,23 @@ runServer = do
 
 clientHandler :: ServerChans -> WS.ServerApp
 clientHandler chans pending = do
-    conn <- WS.acceptRequest pending
-    putStrLn "Client connected"
-    clientChan <- newChan
-    writeChan (chans^.authChan) $ ConnectMsg clientChan
-    createClient clientChan conn
+  conn <- WS.acceptRequest pending
+  let path = WS.requestPath $ WS.pendingRequest pending
+  case path of
+    "/admin" -> do
+          createAdmin conn
+    _        ->  do
+          clientChan <- newChan
+          serverChan <- newChan
+          let channels = ClientChan serverChan clientChan
+          writeChan (chans^.authChan) $ ConnectMsg channels
+          createClient channels conn
 
 createClient :: ClientChan -> WS.Connection -> IO ()
 createClient chan conn = flip finally disconnect $ WS.withPingThread conn 30 (return ()) $ forever $ do
   msg <- decode <$> WS.receiveData conn
-  whenJust msg $ writeChan chan
+  whenJust msg $ writeChan $ chan^.outChan
   where disconnect = do
-          writeChan chan Disconnect
+          writeChan (chan^.outChan) Disconnect
           id <- myThreadId
           putStrLn $ "Client " ++ show id ++ " disconnected"
