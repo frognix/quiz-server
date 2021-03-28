@@ -21,12 +21,14 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- extra
 - aeson
 - text
 - lens
 - persistent
 - persistent-sqlite
 - persistent-template
+- websockets
 
 library:
   source-dirs: src

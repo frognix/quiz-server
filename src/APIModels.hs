@@ -24,6 +24,7 @@ jsonOptions = defaultOptions
 {- Define UserMessage type -}
 data UserMessage = Registration { _login :: Text, _password :: Text }
                  | Authorization { _login :: Text, _password :: Text }
+                 | Disconnect
                  deriving (Show, Generic)
 
 --Create lenses for UserMessage

@@ -1,9 +1,6 @@
 module Main where
 
-import Lib
-import APIModels
-import DataBase
-
+import Server
 
 main :: IO ()
-main = someFunc
+main = runServer

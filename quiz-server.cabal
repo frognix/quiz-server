@@ -26,8 +26,10 @@ source-repository head
 library
   exposed-modules:
       APIModels
-      DataBase
       Lib
+      Server
+      ServerDB
+      Services
   other-modules:
       Paths_quiz_server
   hs-source-dirs:
@@ -35,11 +37,13 @@ library
   build-depends:
       aeson
     , base >=4.7 && <5
+    , extra
     , lens
     , persistent
     , persistent-sqlite
     , persistent-template
     , text
+    , websockets
   default-language: Haskell2010
 
 executable quiz-server-exe
@@ -52,12 +56,14 @@ executable quiz-server-exe
   build-depends:
       aeson
     , base >=4.7 && <5
+    , extra
     , lens
     , persistent
     , persistent-sqlite
     , persistent-template
     , quiz-server
     , text
+    , websockets
   default-language: Haskell2010
 
 test-suite quiz-server-test
@@ -71,10 +77,12 @@ test-suite quiz-server-test
   build-depends:
       aeson
     , base >=4.7 && <5
+    , extra
     , lens
     , persistent
     , persistent-sqlite
     , persistent-template
     , quiz-server
     , text
+    , websockets
   default-language: Haskell2010

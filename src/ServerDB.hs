@@ -12,7 +12,7 @@
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE FlexibleInstances          #-}
-module DataBase where
+module ServerDB where
 import Control.Monad.IO.Class  (liftIO)
 import Database.Persist
 import Database.Persist.Sqlite
@@ -21,8 +21,9 @@ import Data.Text (Text)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 User
-    login Text
+    username Text
     password Text
+    UniqueUsername username
     deriving Show
 Topic
     title Text
@@ -40,12 +41,11 @@ dataBaseAddress = "./database/quiz-database.sqlite"
 
 findUser :: Text -> IO (Maybe (Entity User))
 findUser login = runSqlite dataBaseAddress $ do
-    user <- selectFirst [UserLogin ==. login] []
-    return user
+    selectFirst [UserUsername ==. login] []
 
 selectKey f s = do
   keys <- selectKeysList f s
-  if length keys == 0 then return Nothing
+  if null keys then return Nothing
     else return $ Just (head keys)
 
 getQuestions :: Text -> IO (Maybe [Entity Question])
