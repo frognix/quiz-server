@@ -30,7 +30,6 @@ library
       Channels
       ClientMessages
       ExtraTools
-      Lib
       Server
       ServerDB
       ServerMessages
