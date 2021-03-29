@@ -5,6 +5,10 @@ module ExtraTools where
 import Data.Aeson
 import GHC.Generics
 
+maybeIf :: Maybe a -> b -> (a -> b) -> b
+maybeIf (Just v) _ func = func v
+maybeIf _ value _       = value
+
 jsonOptions :: Options
 jsonOptions = defaultOptions
   {

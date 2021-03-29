@@ -51,10 +51,6 @@ toAdminTopic (Topic title info) questions = AdminTopic title info $ map toAdminQ
 toAdminQuestion :: Question -> AdminQuestion
 toAdminQuestion (Question text _ answer answers) = AdminQuestion text answer answers
 
-maybeIf :: Maybe a -> b -> (a -> b) -> b
-maybeIf (Just v) _ func = func v
-maybeIf _ value _       = value
-
 adminAction :: AdminMessage -> IO AdminServerMessage
 adminAction GetTopicList = runSqlite dataBaseAddress $ do
   topics <- selectList [] []
