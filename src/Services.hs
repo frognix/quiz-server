@@ -16,7 +16,7 @@ import Control.Exception (finally)
 import Control.Concurrent.Chan
 import Data.Maybe 
 import Database.Persist.Sqlite (runSqlite)
-import Database.Persist (PersistUniqueWrite(insertUnique))
+import Database.Persist (PersistUniqueWrite(insertUnique), selectFirst, (==.))
 
 
 authenticationService :: ServerChans -> IO ()
@@ -35,6 +35,12 @@ authenticationService chans = forever $ do
             return $ isJust key
           let status = Status $ if isKey then "Ok" else "User already in database"
           print status
+        Authorization login password -> do
+            isUser <- runSqlite dataBaseAddress $ do 
+              user <- selectFirst [UserUsername ==. login, UserAdmin ==. False, UserPassword ==. password] []
+              return  $ isJust user
+            let status = Status $ if isUser then "Ok" else "The user is not in the database"
+            print status
         _ -> do 
           return ()
       putStrLn "-- End receive connect message--"
