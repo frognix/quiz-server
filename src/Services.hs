@@ -13,6 +13,7 @@ import qualified Data.Text.IO as TextIO
 import Control.Monad
 import Control.Exception (finally)
 import Control.Concurrent.Chan
+import Control.Concurrent (threadDelay)
 
 authenticationService :: ServerChans -> IO ()
 authenticationService chans = forever $ do
@@ -29,7 +30,7 @@ authenticationService chans = forever $ do
     _ -> return ()
 
 lobbyManagerService :: ServerChans -> IO ()
-lobbyManagerService chans = return () -- TODO
+lobbyManagerService chans = forever $ threadDelay 10000000
 
 createLobby :: ServerChans -> (Client, Client) -> [Question] -> IO ()
 createLobby chans (client1, client2) questions = undefined

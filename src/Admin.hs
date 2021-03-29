@@ -11,7 +11,6 @@ import Control.Monad.Extra (whenJust)
 import Control.Monad
 import Control.Exception (finally)
 import Control.Concurrent.Chan
-import Control.Concurrent (forkIO, threadDelay, myThreadId)
 import Database.Persist
 import Database.Persist.Sqlite
 import Database.Persist.TH

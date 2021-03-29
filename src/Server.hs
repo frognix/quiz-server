@@ -14,10 +14,11 @@ import qualified Network.WebSockets as WS
 import Data.Aeson (decode,encode)
 import Control.Monad.Extra (whenJust)
 import Control.Monad
-import Control.Exception (finally)
+import Control.Exception (finally,try)
 import Control.Concurrent.Chan
-import Control.Concurrent (forkIO, threadDelay, myThreadId)
-import Control.Concurrent.Async (race)
+import Control.Concurrent (myThreadId)
+import Control.Concurrent.Async (race,async,runConcurrently, Concurrently (runConcurrently, Concurrently))
+import Control.Applicative
 
 runServer :: IO ()
 runServer = do
@@ -26,9 +27,12 @@ runServer = do
   lobbyManagerChan <- newChan
   authenticationChan <- newChan
   let chans = ServerChans authenticationChan lobbyManagerChan
-  forkIO $ authenticationService chans
-  forkIO $ lobbyManagerService chans
-  WS.runServer "127.0.0.1" 8080 $ clientHandler chans
+  res <- runConcurrently $ foldl1 (<|>) $ map Concurrently [
+      authenticationService chans,
+      lobbyManagerService chans,
+      WS.runServer "127.0.0.1" 8080 $ clientHandler chans
+    ]
+  return ()
 
 clientHandler :: ServerChans -> WS.ServerApp
 clientHandler chans pending = do
