@@ -15,6 +15,7 @@ jsonOptions = defaultOptions
 data StatusType = Ok
                 | UnexpectedMessageType
                 | NotFound
+                | AlreadyInDb
                 deriving (Show, Generic)
 
 instance ToJSON StatusType where

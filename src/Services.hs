@@ -36,14 +36,14 @@ authenticationService chans = forever $ do
           isKey <- runSqlite dataBaseAddress $ do 
             key <- insertUnique $ User login password False
             return $ isJust key
-          let status = Status $ if isKey then "Ok" else "User already in db"
+          let status = Status $ if isKey then Ok else AlreadyInDb
           print status
           writeChan (conn^.inChan) status
         Authorization login password -> do 
           isUser <- runSqlite dataBaseAddress $ do 
             user <- selectFirst [UserUsername ==. login, UserAdmin ==. False , UserPassword ==. password] []
             return $ isJust user
-          let status = Status $ if isUser then "Ok" else "User not exist in db"
+          let status = Status $ if isUser then Ok else NotFound
           putMVar connectedUser [login] 
           print status
           writeChan (conn^.inChan) status
