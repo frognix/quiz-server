@@ -38,14 +38,13 @@ authenticationService chans = do
             print status
             writeChan (conn^.inChan) status
           Authorization login password -> do 
-            isUser <- runSqlite dataBaseAddress $ do 
-              user <- selectFirst [UserUsername ==. login, UserPassword ==. password] []
-              return $ isJust user 
-            when isUser $ modifyMVar_ connectedUsers $ addToListIO login
-            when isUser $ writeChan (chans^.lobbyChan) $ Client (User login password False) conn     
+            isUser <- runSqlite dataBaseAddress $ exists [UserUsername ==. login, UserPassword ==. password] 
             let status = Status $ if isUser then Ok else NotFound   
             print status
             writeChan (conn^.inChan) status
+            guard isUser 
+            modifyMVar_ connectedUsers $ addToListIO login
+            writeChan (chans^.lobbyChan) $ Client (User login password False) conn 
           _ -> do 
             putStrLn "-- Not impl --"
             return ()
@@ -55,10 +54,10 @@ authenticationService chans = do
         return ()
 
 addToListIO :: a -> [a] -> IO [a] 
-addToListIO x xs = do return $ x : xs
+addToListIO x xs = return $ x : xs
 
 deleteFromListIO :: Eq a => a -> [a] -> IO [a]
-deleteFromListIO x xs = do return $ filter (/= x) xs
+deleteFromListIO x xs = return $ filter (/= x) xs
 
 lobbyManagerService :: ServerChans -> IO ()
 lobbyManagerService chans = forever $ threadDelay 10000000
