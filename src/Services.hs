@@ -7,6 +7,7 @@ import ServerDB
 import ServerMessages
 import ClientMessages
 import Channels
+import ExtraTools
 import Control.Lens
 import Data.Text (Text)
 import qualified Data.Text.IO as TextIO
@@ -26,7 +27,7 @@ authenticationService chans = forever $ do
       msg <- readChan $ conn^.outChan
       print msg
       putStrLn "-- End receive connect message--"
-      writeChan (conn^.inChan) (Status "Ok")
+      writeChan (conn^.inChan) $ Status Ok
     _ -> return ()
 
 lobbyManagerService :: ServerChans -> IO ()

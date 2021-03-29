@@ -54,7 +54,7 @@ instance FromJSON UserQuestion where
     parseJSON = genericParseJSON jsonOptions
 
 {- Define ServerMessage type -}
-data ServerMessage = Status { _status :: Text }
+data ServerMessage = Status { _status :: StatusType }
                    | Topics { _topics :: [Topic] }
                    | LobbyInfo { _topic :: Topic, _players :: [Player] }
                    | YourMove

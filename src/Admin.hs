@@ -4,6 +4,7 @@ module Admin (createAdmin) where
 import AdminMessages
 import Channels
 import ServerDB
+import ExtraTools
 import Control.Lens
 import qualified Network.WebSockets as WS
 import Data.Aeson (decode, encode)
@@ -26,7 +27,7 @@ createAdmin conn = flip finally disconnect $ WS.withPingThread conn 30 (return (
       isAdmin <- runSqlite dataBaseAddress $ do
         admin <- selectFirst [UserUsername ==. login, UserAdmin ==. True, UserPassword ==. password] []
         return $ isJust admin
-      let status = Status $ if isAdmin then "Ok" else "Wrong username or password"
+      let status = Status $ if isAdmin then Ok else NotFound
       WS.sendTextData conn . encode $ status
       guard isAdmin
       putStrLn $ "Admin authorized: " ++ unpack login
@@ -63,10 +64,10 @@ adminAction GetTopicList = runSqlite dataBaseAddress $ do
   return $ TopicList adminTopics
 adminAction (DeleteTopic title) = runSqlite dataBaseAddress $ do
   topic <- (fmap . fmap) entityKey . getBy $ UniqueTitle title
-  maybeIf topic (return $ Status "Topic not found") $ \key -> do
+  maybeIf topic (return $ Status NotFound) $ \key -> do
     delete key
     deleteWhere [QuestionTopicId ==. key]
-    return $ Status "Ok"
+    return $ Status Ok
 adminAction (EditTopic (AdminTopic title info questions)) = runSqlite dataBaseAddress $ do
   maybeTopic <- (fmap . fmap) entityKey . getBy $ UniqueTitle title
   topic <- maybeIf maybeTopic (insert $ Topic title info) (return . return . fromJust $ maybeTopic)
@@ -74,5 +75,5 @@ adminAction (EditTopic (AdminTopic title info questions)) = runSqlite dataBaseAd
   deleteWhere [QuestionTopicId ==. topic]
   forM_ questions $ \(AdminQuestion text answer answers) -> do
     insert $ Question text topic answer answers
-  return (Status "Ok")
-adminAction _ = return (Status "Unexpected message type")
+  return $ Status Ok
+adminAction _ = return $ Status UnexpectedMessageType

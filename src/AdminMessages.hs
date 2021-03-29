@@ -47,7 +47,7 @@ instance FromJSON AdminMessage where
     parseJSON = genericParseJSON jsonOptions
 
 data AdminServerMessage = TopicList { _topics :: [AdminTopic] }
-                        | Status { _status :: Text }
+                        | Status { _status :: StatusType }
                         deriving (Show, Generic)
 
 makeLenses ''AdminServerMessage
