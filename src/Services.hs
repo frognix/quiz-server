@@ -7,7 +7,7 @@ import ServerDB
 import ServerMessages
 import ClientMessages
 import Channels
-import ExtraTools
+import ExtraTools ( StatusType(NotFound, AlreadyInDb, Ok), withMaybe)
 import Control.Lens
 import qualified Data.Text.IO as TextIO
 import Control.Monad
@@ -17,12 +17,13 @@ import Control.Concurrent (threadDelay, newMVar, putMVar, newEmptyMVar, modifyMV
 import Database.Persist.Sqlite
 import Data.Maybe
 import Data.Text.IO as T
-import Data.Text (pack)
+import Data.Text (pack, Text)
+import Control.Concurrent.Extra (MVar)
 
 authenticationService :: ServerChans -> IO ()
 authenticationService chans = do 
   connectedUsers <- newMVar []
-  forever $ flip mplus (return ()) $ do  
+  forever $ do  
     T.putStrLn "Start authentication"
     client <- readChan $ chans^.authChan
     T.putStrLn "Client message"
@@ -30,30 +31,29 @@ authenticationService chans = do
       ConnectMsg conn -> do
         T.putStrLn "--Receive connect message--"
         msg <- readChan $ conn^.outChan
-        T.putStrLn $ pack $ show msg
-        case msg of 
-          Registration login password -> do 
-            isKey <- runSqlite dataBaseAddress $ do 
-              key <- insertUnique $ User login password False
-              return $ isJust key
-            let status = Status $ if isKey then Ok else AlreadyInDb
-            T.putStrLn $ pack $ show status
-            writeChan (conn^.inChan) status
-          Authorization login password -> do 
-            isUser <- runSqlite dataBaseAddress $ exists [UserUsername ==. login, UserPassword ==. password] 
-            let status = Status $ if isUser then Ok else NotFound   
-            T.putStrLn $ pack $ show status
-            writeChan (conn^.inChan) status
-            guard isUser 
-            modifyMVar_ connectedUsers $ addToListIO login
-            writeChan (chans^.lobbyChan) $ Client (User login password False) conn 
-          _ -> do 
-            T.putStrLn "-- Not impl --"
-            return ()
+        handleUserMessage connectedUsers client conn msg
+        logins <- readMVar connectedUsers
+        print logins
         T.putStrLn "-- End receive connect message--"
       DisconnectMsg client -> do
         modifyMVar_ connectedUsers $ deleteFromListIO . userUsername $ client^.user 
         return ()
+  where 
+    handleUserMessage :: MVar [Text] -> Connection -> ClientChan -> UserMessage -> IO ()
+    handleUserMessage _ connection clientChan (Registration login password) = do 
+      maybeKey <- runSqlite dataBaseAddress $ insertUnique $ User login password False
+      when (isNothing maybeKey) $ writeChan (chans^.authChan) connection
+      writeChan (clientChan^.inChan) $ Status $ if isJust maybeKey then Ok else AlreadyInDb
+
+    handleUserMessage connectedUsers connection clientChan (Authorization login password) = do 
+      maybeUser <- runSqlite dataBaseAddress $ selectFirst [UserUsername ==. login, UserPassword ==. password] []
+      withMaybe maybeUser (writeChan (chans^.authChan) connection) $ \user -> do 
+        modifyMVar_ connectedUsers $ addToListIO login
+        writeChan (chans^.lobbyChan) $ Client (User login password False) clientChan 
+      writeChan (clientChan^.inChan) $ Status $ if isJust maybeUser then Ok else NotFound
+      
+    handleUserMessage _ _ _ _ = do
+      T.putStrLn "-- Not impl --"
 
 addToListIO :: a -> [a] -> IO [a] 
 addToListIO x xs = return $ x : xs
