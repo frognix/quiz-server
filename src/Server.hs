@@ -10,6 +10,7 @@ import Services
 import Channels
 import Admin
 import ExtraTools ( withGuard, websocketThread )
+import LobbyManager
 
 import qualified Network.WebSockets as WS
 import Data.Aeson (decode,encode)

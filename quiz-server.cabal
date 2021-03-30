@@ -30,6 +30,8 @@ library
       Channels
       ClientMessages
       ExtraTools
+      LobbyManager
+      PlayGround
       Server
       ServerDB
       ServerMessages
@@ -42,8 +44,10 @@ library
       aeson
     , async
     , base >=4.7 && <5
+    , containers
     , extra
     , lens
+    , mtl
     , persistent
     , persistent-sqlite
     , persistent-template
@@ -62,8 +66,10 @@ executable quiz-server-exe
       aeson
     , async
     , base >=4.7 && <5
+    , containers
     , extra
     , lens
+    , mtl
     , persistent
     , persistent-sqlite
     , persistent-template
@@ -84,8 +90,10 @@ test-suite quiz-server-test
       aeson
     , async
     , base >=4.7 && <5
+    , containers
     , extra
     , lens
+    , mtl
     , persistent
     , persistent-sqlite
     , persistent-template

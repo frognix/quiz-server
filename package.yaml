@@ -30,6 +30,8 @@ dependencies:
 - persistent-template
 - websockets
 - async
+- mtl
+- containers
 
 library:
   source-dirs: src

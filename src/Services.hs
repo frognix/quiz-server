@@ -22,9 +22,9 @@ import Control.Concurrent.Extra (MVar)
 import Data.List
 
 authenticationService :: ServerChans -> IO ()
-authenticationService chans = do 
+authenticationService chans = do
   connectedUsers <- newMVar []
-  forever $ do  
+  forever $ do
     T.putStrLn "Start authentication"
     client <- readChan $ chans^.authChan
     T.putStrLn "Client message"
@@ -38,27 +38,27 @@ authenticationService chans = do
         T.putStrLn "-- End receive connect message--"
       DisconnectMsg client -> do
         T.putStrLn "-- disconnecting --"
-        modifyMVar_ connectedUsers $ deleteFromListIO . userUsername $ client^.user 
+        modifyMVar_ connectedUsers $ deleteFromListIO . userUsername $ client^.user
         return ()
-  where 
+  where
     handleUserMessage :: MVar [Text] -> Connection -> ClientChan -> UserMessage -> IO ()
-    handleUserMessage _ connection clientChan (Registration login password) = do 
+    handleUserMessage _ connection clientChan (Registration login password) = do
       maybeKey <- runSqlite dataBaseAddress $ insertUnique $ User login password False
       when (isNothing maybeKey) $ writeChan (chans^.authChan) connection
       writeChan (clientChan^.inChan) $ Status $ if isJust maybeKey then Ok else AlreadyInDb
 
-    handleUserMessage connectedUsers connection clientChan (Authorization login password) = do 
+    handleUserMessage connectedUsers connection clientChan (Authorization login password) = do
       maybeUser <- runSqlite dataBaseAddress $ selectFirst [UserUsername ==. login, UserPassword ==. password] []
-      withMaybe maybeUser (writeChan (chans^.authChan) connection) $ \user -> do 
+      withMaybe maybeUser (writeChan (chans^.authChan) connection) $ \user -> do
         writeChan (chans^.lobbyChan) $ Client (User login password False) clientChan
         isUserExist <-findMVar login connectedUsers
         when isUserExist $ modifyMVar_ connectedUsers $ addToListIO login
       writeChan (clientChan^.inChan) $ Status $ if isJust maybeUser then Ok else NotFound
-      
+
     handleUserMessage _ _ _ _ = do
       T.putStrLn "-- Not impl --"
 
-addToListIO :: a -> [a] -> IO [a] 
+addToListIO :: a -> [a] -> IO [a]
 addToListIO x xs = return $ x : xs
 
 deleteFromListIO :: Eq a => a -> [a] -> IO [a]
@@ -68,9 +68,3 @@ findMVar :: Eq a => a -> MVar [a] -> IO Bool
 findMVar x mvar = do
   xs <- readMVar mvar
   return $ isNothing $ find (== x) xs
-
-lobbyManagerService :: ServerChans -> IO ()
-lobbyManagerService chans = forever $ threadDelay 10000000
-
-createLobby :: ServerChans -> (Client, Client) -> [Question] -> IO ()
-createLobby chans (client1, client2) questions = undefined
