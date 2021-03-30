@@ -10,13 +10,14 @@ import Control.Lens
 import Data.Aeson
 import GHC.Generics
 import Data.Text (Text)
+import ServerDB (Topic)
 
 import ExtraTools
 
-data Topic = Topic { _title :: Text, _info :: Text }
-  deriving (Show, Generic)
+-- data UserTopic = UserTopic { _title :: Text, _info :: Text }
+--   deriving (Show, Generic)
 
-makeLenses ''Topic
+-- makeLenses ''UserTopic
 
 instance ToJSON Topic where
     toJSON = genericToJSON jsonOptions

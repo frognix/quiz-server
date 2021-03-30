@@ -57,13 +57,13 @@ adminAction GetTopicList = runSqlite dataBaseAddress $ do
     return $ toAdminTopic topic (map entityVal questions)
   return $ TopicList adminTopics
 adminAction (DeleteTopic title) = runSqlite dataBaseAddress $ do
-  topic <- (fmap . fmap) entityKey . getBy $ UniqueTitle title
+  topic <- entityKey <$$> getBy (UniqueTitle title)
   withMaybe topic (return $ Status NotFound) $ \key -> do
     delete key
     deleteWhere [QuestionTopicId ==. key]
     return $ Status Ok
 adminAction (EditTopic (AdminTopic title info questions)) = runSqlite dataBaseAddress $ do
-  maybeTopic <- (fmap . fmap) entityKey . getBy $ UniqueTitle title
+  maybeTopic <- entityKey <$$> getBy (UniqueTitle title)
   topic <- withMaybe maybeTopic (insert $ Topic title info) return
   update topic [TopicInfo =. info]
   deleteWhere  [QuestionTopicId ==. topic]

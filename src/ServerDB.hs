@@ -20,6 +20,7 @@ import Database.Persist
 import Database.Persist.Sqlite
 import Database.Persist.TH
 import Data.Text (Text)
+import GHC.Generics
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 User
@@ -32,7 +33,7 @@ Topic
     title Text
     info Text
     UniqueTitle title
-    deriving Show
+    deriving Show Generic
 Question
     text Text
     topicId TopicId
