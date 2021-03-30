@@ -16,39 +16,41 @@ import Control.Concurrent.Chan
 import Control.Concurrent (threadDelay, newMVar, putMVar, newEmptyMVar, modifyMVar_, withMVar, readMVar, tryReadMVar)
 import Database.Persist.Sqlite
 import Data.Maybe
+import Data.Text.IO as T
+import Data.Text (pack)
 
 authenticationService :: ServerChans -> IO ()
 authenticationService chans = do 
   connectedUsers <- newMVar []
-  forever $ do 
-    putStrLn "Start authentication"
+  forever $ flip mplus (return ()) $ do  
+    T.putStrLn "Start authentication"
     client <- readChan $ chans^.authChan
-    print "Client message"
+    T.putStrLn "Client message"
     case client of
       ConnectMsg conn -> do
-        putStrLn "--Receive connect message--"
+        T.putStrLn "--Receive connect message--"
         msg <- readChan $ conn^.outChan
-        print msg
+        T.putStrLn $ pack $ show msg
         case msg of 
           Registration login password -> do 
             isKey <- runSqlite dataBaseAddress $ do 
               key <- insertUnique $ User login password False
               return $ isJust key
             let status = Status $ if isKey then Ok else AlreadyInDb
-            print status
+            T.putStrLn $ pack $ show status
             writeChan (conn^.inChan) status
           Authorization login password -> do 
             isUser <- runSqlite dataBaseAddress $ exists [UserUsername ==. login, UserPassword ==. password] 
             let status = Status $ if isUser then Ok else NotFound   
-            print status
+            T.putStrLn $ pack $ show status
             writeChan (conn^.inChan) status
             guard isUser 
             modifyMVar_ connectedUsers $ addToListIO login
             writeChan (chans^.lobbyChan) $ Client (User login password False) conn 
           _ -> do 
-            putStrLn "-- Not impl --"
+            T.putStrLn "-- Not impl --"
             return ()
-        putStrLn "-- End receive connect message--"
+        T.putStrLn "-- End receive connect message--"
       DisconnectMsg client -> do
         modifyMVar_ connectedUsers $ deleteFromListIO . userUsername $ client^.user 
         return ()
