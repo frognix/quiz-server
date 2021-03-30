@@ -1,10 +1,10 @@
 name:                quiz-server
 version:             0.1.0.0
-github:              "githubuser/quiz-server"
+github:              "frognix/quiz-server"
 license:             BSD3
 author:              "Author name here"
 maintainer:          "example@example.com"
-copyright:           "2021 Author name here"
+copyright:           "2021"
 
 extra-source-files:
 - README.md
@@ -26,6 +26,9 @@ dependencies:
 - text
 - lens
 - persistent
+- unliftio-core
+- resourcet
+- monad-logger
 - persistent-sqlite
 - persistent-template
 - websockets

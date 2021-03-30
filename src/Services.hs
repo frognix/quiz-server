@@ -43,15 +43,15 @@ authenticationService chans = do
   where
     handleUserMessage :: MVar [Text] -> Connection -> ClientChan -> UserMessage -> IO ()
     handleUserMessage _ connection clientChan (Registration login password) = do
-      maybeKey <- runSqlite dataBaseAddress $ insertUnique $ User login password False
+      maybeKey <- withDB $ insertUnique $ User login password False
       when (isNothing maybeKey) $ writeChan (chans^.authChan) connection
       writeChan (clientChan^.inChan) $ Status $ if isJust maybeKey then Ok else AlreadyInDb
 
     handleUserMessage connectedUsers connection clientChan (Authorization login password) = do
-      maybeUser <- runSqlite dataBaseAddress $ selectFirst [UserUsername ==. login, UserPassword ==. password] []
-      withMaybe maybeUser (writeChan (chans^.authChan) connection) $ \user -> do
-        writeChan (chans^.lobbyChan) $ Client (User login password False) clientChan
-        isUserExist <-findMVar login connectedUsers
+      maybeUser <- withDB $ selectFirst [UserUsername ==. login, UserPassword ==. password] []
+      withMaybe maybeUser (writeChan (chans^.authChan) connection) $ \(Entity _ user) -> do
+        writeChan (chans^.lobbyChan) $ Client user clientChan
+        isUserExist <- findMVar login connectedUsers
         when isUserExist $ modifyMVar_ connectedUsers $ addToListIO login
       writeChan (clientChan^.inChan) $ Status $ if isJust maybeUser then Ok else NotFound
 

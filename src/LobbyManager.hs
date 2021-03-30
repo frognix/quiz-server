@@ -40,8 +40,6 @@ addClient client = do
   waiter <- liftIO $ clientWaiter client
   modify (waiter :)
 
-withDB = runSqlite dataBaseAddress
-
 lobbyManagerService :: ServerChans -> IO ()
 lobbyManagerService chans = do
   subChan <- newChan

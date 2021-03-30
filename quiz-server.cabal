@@ -7,11 +7,11 @@ cabal-version: 1.12
 name:           quiz-server
 version:        0.1.0.0
 description:    Please see the README on GitHub at <https://github.com/githubuser/quiz-server#readme>
-homepage:       https://github.com/githubuser/quiz-server#readme
-bug-reports:    https://github.com/githubuser/quiz-server/issues
+homepage:       https://github.com/frognix/quiz-server#readme
+bug-reports:    https://github.com/frognix/quiz-server/issues
 author:         Author name here
 maintainer:     example@example.com
-copyright:      2021 Author name here
+copyright:      2021
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
@@ -21,7 +21,7 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/quiz-server
+  location: https://github.com/frognix/quiz-server
 
 library
   exposed-modules:
@@ -47,11 +47,14 @@ library
     , containers
     , extra
     , lens
+    , monad-logger
     , mtl
     , persistent
     , persistent-sqlite
     , persistent-template
+    , resourcet
     , text
+    , unliftio-core
     , websockets
   default-language: Haskell2010
 
@@ -69,12 +72,15 @@ executable quiz-server-exe
     , containers
     , extra
     , lens
+    , monad-logger
     , mtl
     , persistent
     , persistent-sqlite
     , persistent-template
     , quiz-server
+    , resourcet
     , text
+    , unliftio-core
     , websockets
   default-language: Haskell2010
 
@@ -93,11 +99,14 @@ test-suite quiz-server-test
     , containers
     , extra
     , lens
+    , monad-logger
     , mtl
     , persistent
     , persistent-sqlite
     , persistent-template
     , quiz-server
+    , resourcet
     , text
+    , unliftio-core
     , websockets
   default-language: Haskell2010

@@ -24,7 +24,7 @@ createAdmin conn =  websocketThread conn onCreate onDestroy $ do
   putStrLn "Admin created"
   maybeMsg <- decode <$> WS.receiveData conn
   withMaybe maybeMsg (return ()) $ \msg -> do
-    isAdmin <- runSqlite dataBaseAddress $ exists [
+    isAdmin <- withDB $ exists [
       UserUsername ==. msg^.login,
       UserAdmin    ==. True,
       UserPassword ==. msg^.password]
@@ -50,19 +50,19 @@ toAdminQuestion :: Question -> AdminQuestion
 toAdminQuestion (Question text _ answer answers) = AdminQuestion text answer answers
 
 adminAction :: AdminMessage -> IO AdminServerMessage
-adminAction GetTopicList = runSqlite dataBaseAddress $ do
+adminAction GetTopicList = withDB $ do
   topics <- selectList [] []
   adminTopics <- forM topics $ \(Entity key topic) -> do
     questions <- selectList [QuestionTopicId ==. key] []
     return $ toAdminTopic topic (map entityVal questions)
   return $ TopicList adminTopics
-adminAction (DeleteTopic title) = runSqlite dataBaseAddress $ do
+adminAction (DeleteTopic title) = withDB $ do
   topic <- entityKey <$$> getBy (UniqueTitle title)
   withMaybe topic (return $ Status NotFound) $ \key -> do
     delete key
     deleteWhere [QuestionTopicId ==. key]
     return $ Status Ok
-adminAction (EditTopic (AdminTopic title info questions)) = runSqlite dataBaseAddress $ do
+adminAction (EditTopic (AdminTopic title info questions)) = withDB $ do
   maybeTopic <- entityKey <$$> getBy (UniqueTitle title)
   topic <- withMaybe maybeTopic (insert $ Topic title info) return
   update topic [TopicInfo =. info]

@@ -22,6 +22,17 @@ import Database.Persist.TH
 import Data.Text (Text)
 import GHC.Generics
 
+
+import Control.Monad.IO.Unlift (MonadUnliftIO)
+import Control.Monad.Reader (ReaderT)
+import Control.Monad.Logger (NoLoggingT)
+import Control.Monad.Trans.Resource (ResourceT)
+
+withDB :: MonadUnliftIO m => ReaderT SqlBackend (NoLoggingT (ResourceT m)) a -> m a
+withDB = runSqlite dataBaseAddress
+
+dataBaseAddress = "./database/quiz-database.sqlite"
+
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 User
     username Text
@@ -42,14 +53,11 @@ Question
     deriving Show
 |]
 
-dataBaseAddress = "./database/quiz-database.sqlite"
-
 initDB :: IO ()
-initDB = runSqlite dataBaseAddress $ do
-  runMigration migrateAll
+initDB = withDB $ runMigration migrateAll
 
 fillTables :: IO ()
-fillTables = runSqlite dataBaseAddress $ do
+fillTables = withDB $ do
   insertUnique $ User "admin" "admin" True
   insertUnique $ User "user" "12345" True
 
@@ -62,21 +70,3 @@ fillTables = runSqlite dataBaseAddress $ do
                                             "fish",
                                             "Just three letters"]
       return ()
-
--- findUser :: Text -> IO (Maybe (Entity User))
--- findUser login = runSqlite dataBaseAddress $ do
---     selectFirst [UserUsername ==. login] []
-
--- selectKey f s = do
---   keys <- selectKeysList f s
---   if null keys then return Nothing
---     else return $ Just (head keys)
-
--- getQuestions :: Text -> IO (Maybe [Entity Question])
--- getQuestions topicTitle = runSqlite dataBaseAddress $ do
---     topic <- selectKey [TopicTitle ==. topicTitle] []
---     case topic of
---         Just v -> do
---             questions <- selectList [QuestionTopicId ==. v] []
---             return $ Just questions
---         Nothing -> return Nothing
