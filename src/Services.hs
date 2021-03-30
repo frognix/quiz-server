@@ -19,6 +19,7 @@ import Data.Maybe
 import Data.Text.IO as T
 import Data.Text (pack, Text)
 import Control.Concurrent.Extra (MVar)
+import Data.List
 
 authenticationService :: ServerChans -> IO ()
 authenticationService chans = do 
@@ -36,6 +37,7 @@ authenticationService chans = do
         print logins
         T.putStrLn "-- End receive connect message--"
       DisconnectMsg client -> do
+        T.putStrLn "-- disconnecting --"
         modifyMVar_ connectedUsers $ deleteFromListIO . userUsername $ client^.user 
         return ()
   where 
@@ -48,8 +50,9 @@ authenticationService chans = do
     handleUserMessage connectedUsers connection clientChan (Authorization login password) = do 
       maybeUser <- runSqlite dataBaseAddress $ selectFirst [UserUsername ==. login, UserPassword ==. password] []
       withMaybe maybeUser (writeChan (chans^.authChan) connection) $ \user -> do 
-        modifyMVar_ connectedUsers $ addToListIO login
-        writeChan (chans^.lobbyChan) $ Client (User login password False) clientChan 
+        writeChan (chans^.lobbyChan) $ Client (User login password False) clientChan
+        isUserExist <-findMVar login connectedUsers
+        when isUserExist $ modifyMVar_ connectedUsers $ addToListIO login
       writeChan (clientChan^.inChan) $ Status $ if isJust maybeUser then Ok else NotFound
       
     handleUserMessage _ _ _ _ = do
@@ -60,6 +63,11 @@ addToListIO x xs = return $ x : xs
 
 deleteFromListIO :: Eq a => a -> [a] -> IO [a]
 deleteFromListIO x xs = return $ filter (/= x) xs
+
+findMVar :: Eq a => a -> MVar [a] -> IO Bool
+findMVar x mvar = do
+  xs <- readMVar mvar
+  return $ isNothing $ find (== x) xs
 
 lobbyManagerService :: ServerChans -> IO ()
 lobbyManagerService chans = forever $ threadDelay 10000000
