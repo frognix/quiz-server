@@ -20,30 +20,28 @@ import Data.Maybe
 import Control.Monad.IO.Class  (liftIO)
 
 createAdmin :: WS.Connection -> IO ()
-createAdmin conn = flip finally disconnect $ WS.withPingThread conn 30 (return ()) $ forever $ do
-  msg <- decode <$> WS.receiveData conn
-  case msg of
-    Just (Authorization login password) -> do
-      isAdmin <- runSqlite dataBaseAddress $ do
-        admin <- selectFirst [UserUsername ==. login, UserAdmin ==. True, UserPassword ==. password] []
-        return $ isJust admin
-      let status = Status $ if isAdmin then Ok else NotFound
-      WS.sendTextData conn . encode $ status
-      guard isAdmin
-      putStrLn $ "Admin authorized: " ++ unpack login
-      authorizedAdmin conn
-    _ -> return ()
-  where disconnect = do
-          putStrLn "Admin disconnected"
+createAdmin conn =  websocketThread conn onCreate onDestroy $ do
+  putStrLn "Admin created"
+  maybeMsg <- decode <$> WS.receiveData conn
+  withMaybe maybeMsg (return ()) $ \msg -> do
+    isAdmin <- runSqlite dataBaseAddress $ exists [
+      UserUsername ==. msg^.login,
+      UserAdmin    ==. True,
+      UserPassword ==. msg^.password]
+    let status = Status $ if isAdmin then Ok else NotFound
+    WS.sendTextData conn . encode $ status
+    guard isAdmin
+    putStrLn $ "Admin authorized: " ++ unpack (msg^.login)
+    authorizedAdmin conn
+  where onCreate  = putStrLn "Admin thread created"
+        onDestroy = putStrLn "Admin thread destoyed"
 
 authorizedAdmin :: WS.Connection -> IO ()
 authorizedAdmin conn = forever $ do
   maybeMessage <- decode <$> WS.receiveData conn
-  case maybeMessage of
-    Just message -> do
-      serverAnwser <- adminAction message
-      WS.sendTextData conn $ encode serverAnwser
-    Nothing      -> return ()
+  withMaybe maybeMessage (return ()) $ \message -> do
+    serverAnwser <- adminAction message
+    WS.sendTextData conn $ encode serverAnwser
 
 toAdminTopic :: Topic -> [Question] -> AdminTopic
 toAdminTopic (Topic title info) questions = AdminTopic title info $ map toAdminQuestion questions
@@ -60,15 +58,15 @@ adminAction GetTopicList = runSqlite dataBaseAddress $ do
   return $ TopicList adminTopics
 adminAction (DeleteTopic title) = runSqlite dataBaseAddress $ do
   topic <- (fmap . fmap) entityKey . getBy $ UniqueTitle title
-  maybeIf topic (return $ Status NotFound) $ \key -> do
+  withMaybe topic (return $ Status NotFound) $ \key -> do
     delete key
     deleteWhere [QuestionTopicId ==. key]
     return $ Status Ok
 adminAction (EditTopic (AdminTopic title info questions)) = runSqlite dataBaseAddress $ do
   maybeTopic <- (fmap . fmap) entityKey . getBy $ UniqueTitle title
-  topic <- maybeIf maybeTopic (insert $ Topic title info) (return . return . fromJust $ maybeTopic)
+  topic <- withMaybe maybeTopic (insert $ Topic title info) return
   update topic [TopicInfo =. info]
-  deleteWhere [QuestionTopicId ==. topic]
+  deleteWhere  [QuestionTopicId ==. topic]
   forM_ questions $ \(AdminQuestion text answer answers) -> do
     insert $ Question text topic answer answers
   return $ Status Ok

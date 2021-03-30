@@ -9,6 +9,7 @@ import ServerDB
 import Services
 import Channels
 import Admin
+import ExtraTools ( withGuard, websocketThread )
 
 import qualified Network.WebSockets as WS
 import Data.Aeson (decode,encode)
@@ -16,7 +17,7 @@ import Control.Monad.Extra (whenJust)
 import Control.Monad
 import Control.Exception (finally,try)
 import Control.Concurrent.Chan
-import Control.Concurrent (myThreadId)
+import Control.Concurrent (myThreadId, threadDelay)
 import Control.Concurrent.Async (race,async,runConcurrently, Concurrently (runConcurrently, Concurrently))
 import Control.Applicative
 
@@ -37,24 +38,24 @@ runServer = do
 clientHandler :: ServerChans -> WS.ServerApp
 clientHandler chans pending = do
   conn <- WS.acceptRequest pending
-  let path = WS.requestPath $ WS.pendingRequest pending
-  case path of
-    "/admin" -> do
-          createAdmin conn
-    _        ->  do
-          clientChan <- newChan
-          serverChan <- newChan
-          let channels = ClientChan serverChan clientChan
-          writeChan (chans^.authChan) $ ConnectMsg channels
-          createClient channels conn
+  withGuard (url == "/admin") $ createAdmin conn
+  clientChan <- newChan
+  serverChan <- newChan
+  let channels = ClientChan serverChan clientChan
+  writeChan (chans^.authChan) $ ConnectMsg channels
+  createClient channels conn
+  where url = WS.requestPath $ WS.pendingRequest pending
 
 createClient :: ClientChan -> WS.Connection -> IO ()
-createClient chans conn = flip finally disconnect $ WS.withPingThread conn 30 (return ()) $ forever $ do
+createClient chans conn = websocketThread conn onCreate onDestroy $ do
+  putStrLn "Client start read message"
   result <- race (readChan $ chans^.inChan) (decode <$> WS.receiveData conn)
+  putStrLn "Client read message"
   case result of
     Left  msg -> WS.sendTextData conn $ encode msg
     Right msg -> whenJust msg $ writeChan $ chans^.outChan
-  where disconnect = do
+  putStrLn "Client answered"
+  where onCreate  = putStrLn "Client thread created"
+        onDestroy = do
           writeChan (chans^.outChan) Disconnect
-          id <- myThreadId
-          putStrLn $ "Client " ++ show id ++ " disconnected"
+          putStrLn "Client thread destroyed"
