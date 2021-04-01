@@ -4,7 +4,7 @@ module Admin (createAdmin) where
 import AdminMessages
 import Channels
 import ServerDB
-import ExtraTools
+import Extra.Tools
 import Control.Lens
 import qualified Network.WebSockets as WS
 import Data.Aeson (decode, encode)

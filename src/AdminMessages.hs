@@ -11,7 +11,7 @@ import Data.Aeson
 import GHC.Generics
 import Data.Text (Text)
 
-import ExtraTools
+import Extra.Tools
 
 data AdminQuestion = AdminQuestion { _text :: Text, _correctAnswer :: Int, _answers :: [Text] }
   deriving (Show, Generic)

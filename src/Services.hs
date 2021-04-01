@@ -7,7 +7,7 @@ import ServerDB
 import ServerMessages
 import ClientMessages
 import Channels
-import ExtraTools ( StatusType(NotFound, AlreadyInDb, Ok), withMaybe)
+import Extra.Tools ( StatusType(NotFound, AlreadyInDb, Ok), withMaybe)
 import Control.Lens
 import qualified Data.Text.IO as TextIO
 import Control.Monad

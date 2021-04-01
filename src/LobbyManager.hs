@@ -3,84 +3,96 @@ module LobbyManager (lobbyManagerService) where
 import Channels
 import ServerDB
 import ClientMessages
-import ServerMessages
-import ExtraTools
+import ServerMessages hiding (topic,topics,status)
+import Extra.Tools
+import Extra.State
 import PlayGround
 
-import Control.Monad.State
-import Control.Monad.IO.Class (liftIO)
-import Control.Applicative ((<|>))
-import Control.Monad
+import Control.Monad.State hiding (state)
 import Database.Persist.Sqlite hiding (get)
-import Control.Concurrent (threadDelay,myThreadId)
-import Data.Map.Lens
+import Control.Concurrent (threadDelay)
 import Control.Lens
-import Control.Lens.At
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import Control.Concurrent.Async
 import Control.Concurrent.Chan
 
+-- | Message and client who sent it
 type ClientResponce = (UserMessage, Client)
 
+-- | Asyncronous action that wait for user responce
 type ClientWaiter = Async ClientResponce
 
-type SubManagerChan = Chan (T.Text, Client)
+-- | State of lobby manager
+type LobbyManagerState r = StateT ([ClientWaiter], Map.Map T.Text Client) IO r
 
+-- | Part of lobby manager state with map of clients
+-- who have already choosen a topic
+type MapState r = StateT (Map.Map T.Text Client) IO r
+
+-- | Part of lobby manager state with list of clients
+-- who not have not yet choosen a topic
+type ClientsState r = StateT [ClientWaiter] IO r
+
+-- | Create new ClientWaiter from Client
 clientWaiter :: Client -> IO ClientWaiter
-clientWaiter client = async $ do
+clientWaiter client = linkAsync $ do
   msg <- client^.channels.outChan.to readChan
   return (msg, client)
 
-waitClients :: [ClientWaiter] -> IO (ClientWaiter, ClientResponce)
-waitClients = waitAny
+withMap :: MapState r -> LobbyManagerState r
+withMap = withSnd
 
-addClient :: Client -> StateT [ClientWaiter] IO ()
-addClient client = do
+withClients :: ClientsState r -> LobbyManagerState r
+withClients = withFst
+
+-- | Waits all clients from list and returns
+-- a responce from the first client to be completed,
+-- then removes the client from the client list
+waitClients :: LobbyManagerState ClientResponce
+waitClients = do
+  state <- withClients get
+  liftIO $ when (null state) . forever $ threadDelay 1000000
+  (thread, responce) <- liftIO $ waitAny state
+  liftIO $ cancel thread
+  withClients $ modify $ filter (/=thread)
+  return responce
+
+-- | Waits for a new client from LobbyManagerChan and adds it to
+-- the client list
+waitNewClient :: LobbyManagerChan -> LobbyManagerState Client
+waitNewClient chan = do
+  client <- liftIO $ readChan chan
   waiter <- liftIO $ clientWaiter client
-  modify (waiter :)
+  withClients $ modify (waiter :)
+  return client
 
+-- | Waits for a client from LobbyManagerChan, then
+-- waits for a message with a topic from the client,
+-- if two clients send the same topic, then creates
+-- a new playground
 lobbyManagerService :: ServerChans -> IO ()
-lobbyManagerService chans = do
-  subChan <- newChan
-  topics <-  entityVal <$$> withDB (selectList [] [])
-  subManager <- async $ lobbySubManager chans subChan
-  flip evalStateT [] $ forever $ do
-    list <- get
-    res <- liftIO $ race newUser $ newTopic list
-    case res of
-      Left client -> do
-        addClient client
-        liftIO $ do
-          putStrLn "New client"
-          client^.channels.inChan.to writeChan $ Topics topics
-      Right (thread, (message, client)) -> do
-        modify $ filter (/=thread)
-        liftIO $ do
-          putStrLn $ "New message " ++ show message
-          lobbyManagerAction chans subChan client message
-  where newUser = chans^.lobbyChan.to readChan
-        newTopic state = do
-          if null state then forever $ threadDelay 1000000
-          else liftIO $ waitClients state
+lobbyManagerService chans = flip evalStateT ([], Map.empty) $ forever $ do
+  res <- stateRace waitClients $ waitNewClient (chans^.lobbyChan)
+  case res of
+    Left (message, client) -> do
+      liftIO $ putStrLn $ "New message " ++ show message
+      lobbyManagerAction chans client message
+    Right client -> liftIO $ do
+      putStrLn "New client"
+      topics <- entityVal <$$> withDB (selectList [] [])
+      client^.channels.inChan.to writeChan $ Topics topics
 
-lobbyManagerAction :: ServerChans -> SubManagerChan -> Client -> UserMessage -> IO ()
-lobbyManagerAction chans _    client Disconnect          = chans^.authChan.to writeChan $ DisconnectMsg client
-lobbyManagerAction chans chan client (SelectTopic topic) = do
-  topicExists <- withDB $ exists [TopicTitle ==. topic]
+-- | Applies an action according to a message type
+lobbyManagerAction :: ServerChans -> Client -> UserMessage -> LobbyManagerState ()
+lobbyManagerAction chans client Disconnect          = liftIO $ chans^.authChan.to writeChan $ DisconnectMsg client
+lobbyManagerAction chans client (SelectTopic topic) = do
+  topicExists <- liftIO $ withDB $ exists [TopicTitle ==. topic]
   let status = Status $ if topicExists then Ok else NotFound
-  client^.channels.inChan.to writeChan $ status
-  if topicExists
-    then writeChan chan (topic, client)
-    else chans^.lobbyChan.to writeChan $ client
-lobbyManagerAction _     _    client _                   = client^.channels.inChan.to writeChan $ Status UnexpectedMessageType
-
-lobbySubManager :: ServerChans -> SubManagerChan -> IO ()
-lobbySubManager chans chan = flip evalStateT Map.empty $ forever $ do
-  (topic, client) <- liftIO $ readChan chan
-  maybeClient <- gets (Map.lookup topic)
-  withMaybe maybeClient (at topic ?= client) $ \client' -> do
-    liftIO $ async $ createPlayGround chans (client', client) []
-    modify $ Map.delete topic
-  keys <- gets Map.keys
-  liftIO $ print keys
+  liftIO $ client^.channels.inChan.to writeChan $ status
+  when topicExists $ do
+    maybeClient <- withMap $ gets (Map.lookup topic)
+    withMaybe maybeClient (withMap $ modify $ Map.insert topic client) $ \client' -> do
+      _ <- liftIO $ linkAsync $ createPlayGround chans (client', client) []
+      withMap $ modify $ Map.delete topic
+lobbyManagerAction _     client _  = liftIO $ client^.channels.inChan.to writeChan $ Status UnexpectedMessageType

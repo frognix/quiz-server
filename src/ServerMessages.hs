@@ -12,7 +12,7 @@ import GHC.Generics
 import Data.Text (Text)
 import ServerDB (Topic)
 
-import ExtraTools
+import Extra.Tools
 
 -- data UserTopic = UserTopic { _title :: Text, _info :: Text }
 --   deriving (Show, Generic)

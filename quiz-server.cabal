@@ -29,7 +29,8 @@ library
       AdminMessages
       Channels
       ClientMessages
-      ExtraTools
+      Extra.State
+      Extra.Tools
       LobbyManager
       PlayGround
       Server

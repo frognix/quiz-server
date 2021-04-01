@@ -11,7 +11,7 @@ import Data.Aeson
 import GHC.Generics
 import Data.Text (Text)
 
-import ExtraTools
+import Extra.Tools
 
 {- Define UserMessage type -}
 data UserMessage = Registration { _login :: Text, _password :: Text }

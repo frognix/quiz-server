@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TemplateHaskell #-}
-module ExtraTools where
+module Extra.Tools where
 
 import Data.Aeson
 import GHC.Generics ( Generic )
@@ -47,3 +47,9 @@ fmap2 = fmap . fmap
 
 (<$$>) :: (Functor f1, Functor f2) => (a -> b) -> f1 (f2 a) -> f1 (f2 b)
 (<$$>) = fmap2
+
+linkAsync :: IO a -> IO (Async a)
+linkAsync action = do
+  thread <- async action
+  link thread
+  return thread
