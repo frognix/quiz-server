@@ -11,6 +11,7 @@ import Channels
 import Admin
 import Extra.Tools
 import LobbyManager
+import Client (createClientThread, mkClientChan)
 
 import qualified Network.WebSockets as WS
 import Data.Aeson (decode,encode)
@@ -42,23 +43,7 @@ clientHandler chans pending = do
   withGuard (url == "/admin") $ createAdmin conn
   clientChan <- newChan
   serverChan <- newChan
-  let channels = ClientChan serverChan clientChan
+  let channels = mkClientChan serverChan clientChan
   writeChan (chans^.authChan) $ ConnectMsg channels
-  createClient channels conn
+  createClientThread channels conn
   where url = WS.requestPath $ WS.pendingRequest pending
-
-createClient :: ClientChan -> WS.Connection -> IO ()
-createClient chans conn = websocketThread conn onCreate onDestroy $ do
-  putStrLn "Client start read message"
-  result <- race (readChan $ chans^.inChan) (decode <$> WS.receiveData conn)
-  putStrLn "Client read message"
-  case result of
-    Left  msg -> WS.sendTextData conn $ encode msg
-    Right msg -> case msg of
-      Nothing      -> WS.sendTextData conn $ encode $ Status BadMessageStructure
-      Just message -> writeChan (chans^.outChan) message
-  putStrLn "Client answered"
-  where onCreate  = putStrLn "Client thread created"
-        onDestroy = do
-          writeChan (chans^.outChan) Disconnect
-          putStrLn "Client thread destroyed"

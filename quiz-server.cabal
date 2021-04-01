@@ -28,6 +28,7 @@ library
       Admin
       AdminMessages
       Channels
+      Client
       ClientMessages
       Extra.State
       Extra.Tools

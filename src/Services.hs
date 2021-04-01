@@ -8,6 +8,7 @@ import ServerMessages
 import ClientMessages
 import Channels
 import Extra.Tools ( StatusType(NotFound, AlreadyInDb, Ok), withMaybe)
+import Client (readMsg,writeMsg,ClientChan)
 import Control.Lens
 import qualified Data.Text.IO as TextIO
 import Control.Monad
@@ -31,7 +32,7 @@ authenticationService chans = do
     case client of
       ConnectMsg conn -> do
         T.putStrLn "--Receive connect message--"
-        msg <- readChan $ conn^.outChan
+        msg <- readMsg conn
         handleUserMessage connectedUsers client conn msg
         logins <- readMVar connectedUsers
         print logins
@@ -45,7 +46,7 @@ authenticationService chans = do
     handleUserMessage _ connection clientChan (Registration login password) = do
       maybeKey <- withDB $ insertUnique $ User login password False
       when (isNothing maybeKey) $ writeChan (chans^.authChan) connection
-      writeChan (clientChan^.inChan) $ Status $ if isJust maybeKey then Ok else AlreadyInDb
+      writeMsg clientChan $ Status $ if isJust maybeKey then Ok else AlreadyInDb
 
     handleUserMessage connectedUsers connection clientChan (Authorization login password) = do
       maybeUser <- withDB $ selectFirst [UserUsername ==. login, UserPassword ==. password] []
@@ -53,7 +54,7 @@ authenticationService chans = do
         writeChan (chans^.lobbyChan) $ Client user clientChan
         isUserExist <- findMVar login connectedUsers
         when isUserExist $ modifyMVar_ connectedUsers $ addToListIO login
-      writeChan (clientChan^.inChan) $ Status $ if isJust maybeUser then Ok else NotFound
+      writeMsg clientChan $ Status $ if isJust maybeUser then Ok else NotFound
 
     handleUserMessage _ _ _ _ = do
       T.putStrLn "-- Not impl --"

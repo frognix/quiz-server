@@ -7,6 +7,7 @@ import ServerMessages hiding (topic,topics,status)
 import Extra.Tools
 import Extra.State
 import PlayGround
+import Client (readMsg,writeMsg)
 
 import Control.Monad.State hiding (state)
 import Database.Persist.Sqlite hiding (get)
@@ -37,7 +38,7 @@ type ClientsState r = StateT [ClientWaiter] IO r
 -- | Create new ClientWaiter from Client
 clientWaiter :: Client -> IO ClientWaiter
 clientWaiter client = linkAsync $ do
-  msg <- client^.channels.outChan.to readChan
+  msg <- client^.channels.to readMsg
   return (msg, client)
 
 withMap :: MapState r -> LobbyManagerState r
@@ -81,7 +82,7 @@ lobbyManagerService chans = flip evalStateT ([], Map.empty) $ forever $ do
     Right client -> liftIO $ do
       putStrLn "New client"
       topics <- entityVal <$$> withDB (selectList [] [])
-      client^.channels.inChan.to writeChan $ Topics topics
+      client^.channels.to writeMsg $ Topics topics
 
 -- | Applies an action according to a message type
 lobbyManagerAction :: ServerChans -> Client -> UserMessage -> LobbyManagerState ()
@@ -89,10 +90,10 @@ lobbyManagerAction chans client Disconnect          = liftIO $ chans^.authChan.t
 lobbyManagerAction chans client (SelectTopic topic) = do
   topicExists <- liftIO $ withDB $ exists [TopicTitle ==. topic]
   let status = Status $ if topicExists then Ok else NotFound
-  liftIO $ client^.channels.inChan.to writeChan $ status
+  liftIO $ client^.channels.to writeMsg $ status
   when topicExists $ do
     maybeClient <- withMap $ gets (Map.lookup topic)
     withMaybe maybeClient (withMap $ modify $ Map.insert topic client) $ \client' -> do
       _ <- liftIO $ linkAsync $ createPlayGround chans (client', client) []
       withMap $ modify $ Map.delete topic
-lobbyManagerAction _     client _  = liftIO $ client^.channels.inChan.to writeChan $ Status UnexpectedMessageType
+lobbyManagerAction _     client _  = liftIO $ client^.channels.to writeMsg $ Status UnexpectedMessageType
