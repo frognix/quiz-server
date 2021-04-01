@@ -1,0 +1,35 @@
+name: Continous Integration
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+
+      - name: Install stack
+        uses: haskell/actions/setup@v1
+        with:
+          ghc-version: latest
+          enable-stack: true
+          stack-version: latest
+
+      - name: Cache dependencies (Unix)
+        uses: actions/cache@v1
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack
+
+      - name: Build project
+        run: stack build
+
+      - name: Run tests
+        run: stack test
