@@ -30,6 +30,7 @@ data StatusType = Ok
                 | UnexpectedMessageType
                 | NotFound
                 | AlreadyInDb
+                | BadMessageStructure
                 deriving (Show, Generic)
 
 instance ToJSON StatusType where

@@ -9,7 +9,7 @@ import ServerDB
 import Services
 import Channels
 import Admin
-import Extra.Tools ( withGuard, websocketThread )
+import Extra.Tools
 import LobbyManager
 
 import qualified Network.WebSockets as WS
@@ -29,7 +29,7 @@ runServer = do
   lobbyManagerChan <- newChan
   authenticationChan <- newChan
   let chans = ServerChans authenticationChan lobbyManagerChan
-  res <- runConcurrently $ foldl1 (<|>) $ map Concurrently [
+  _ <- runConcurrently $ foldl1 (<|>) $ map Concurrently [
       authenticationService chans,
       lobbyManagerService chans,
       WS.runServer "127.0.0.1" 8080 $ clientHandler chans
@@ -54,7 +54,9 @@ createClient chans conn = websocketThread conn onCreate onDestroy $ do
   putStrLn "Client read message"
   case result of
     Left  msg -> WS.sendTextData conn $ encode msg
-    Right msg -> whenJust msg $ writeChan $ chans^.outChan
+    Right msg -> case msg of
+      Nothing      -> WS.sendTextData conn $ encode $ Status BadMessageStructure
+      Just message -> writeChan (chans^.outChan) message
   putStrLn "Client answered"
   where onCreate  = putStrLn "Client thread created"
         onDestroy = do
