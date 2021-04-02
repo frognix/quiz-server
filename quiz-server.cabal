@@ -47,6 +47,7 @@ library
     , async
     , base >=4.7 && <5
     , containers
+    , directory
     , extra
     , lens
     , monad-logger
@@ -72,6 +73,7 @@ executable quiz-server-exe
     , async
     , base >=4.7 && <5
     , containers
+    , directory
     , extra
     , lens
     , monad-logger
@@ -99,7 +101,9 @@ test-suite quiz-server-test
     , async
     , base >=4.7 && <5
     , containers
+    , directory
     , extra
+    , hspec
     , lens
     , monad-logger
     , mtl

@@ -26,7 +26,6 @@ import Control.Applicative
 runServer :: IO ()
 runServer = do
   initDB
-  -- fillTables
   lobbyManagerChan <- newChan
   authenticationChan <- newChan
   let chans = ServerChans authenticationChan lobbyManagerChan

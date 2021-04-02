@@ -19,9 +19,11 @@ import Control.Monad.IO.Class  (liftIO)
 import Database.Persist
 import Database.Persist.Sqlite
 import Database.Persist.TH
-import Data.Text (Text)
+import Data.Text (Text,unpack)
 import GHC.Generics
 
+import System.Directory
+import Control.Monad (when)
 
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import Control.Monad.Reader (ReaderT)
@@ -44,7 +46,7 @@ Topic
     title Text
     info Text
     UniqueTitle title
-    deriving Show Generic
+    deriving Show Generic Eq
 Question
     text Text
     topicId TopicId
@@ -55,6 +57,11 @@ Question
 
 initDB :: IO ()
 initDB = withDB $ runMigration migrateAll
+
+deleteDB :: IO ()
+deleteDB = do
+  fileExists <- doesFileExist $ unpack dataBaseAddress
+  when fileExists $ removeFile $ unpack dataBaseAddress
 
 fillTables :: IO ()
 fillTables = withDB $ do

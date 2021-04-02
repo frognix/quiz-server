@@ -7,7 +7,7 @@ import ServerDB
 import ServerMessages
 import ClientMessages
 import Channels
-import Extra.Tools ( StatusType(NotFound, AlreadyInDb, Ok), withMaybe)
+import Extra.Tools ( StatusType(NotFound, AlreadyInDb, Ok, UnexpectedMessageType), withMaybe)
 import Client (readMsg,writeMsg,ClientChan)
 import Control.Lens
 import qualified Data.Text.IO as TextIO
@@ -24,21 +24,15 @@ import Data.List
 
 authenticationService :: ServerChans -> IO ()
 authenticationService chans = do
+  T.putStrLn "Start authentication service"
   connectedUsers <- newMVar []
   forever $ do
-    T.putStrLn "Start authentication"
     client <- readChan $ chans^.authChan
-    T.putStrLn "Client message"
     case client of
       ConnectMsg conn -> do
-        T.putStrLn "--Receive connect message--"
         msg <- readMsg conn
         handleUserMessage connectedUsers client conn msg
-        logins <- readMVar connectedUsers
-        print logins
-        T.putStrLn "-- End receive connect message--"
       DisconnectMsg client -> do
-        T.putStrLn "-- disconnecting --"
         modifyMVar_ connectedUsers $ deleteFromListIO . userUsername $ client^.user
         return ()
   where
@@ -56,8 +50,7 @@ authenticationService chans = do
         when isUserExist $ modifyMVar_ connectedUsers $ addToListIO login
       writeMsg clientChan $ Status $ if isJust maybeUser then Ok else NotFound
 
-    handleUserMessage _ _ _ _ = do
-      T.putStrLn "-- Not impl --"
+    handleUserMessage _ _ clientChan _ = writeMsg clientChan $ Status UnexpectedMessageType
 
 addToListIO :: a -> [a] -> IO [a]
 addToListIO x xs = return $ x : xs

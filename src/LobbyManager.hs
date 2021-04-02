@@ -77,10 +77,8 @@ lobbyManagerService chans = flip evalStateT ([], Map.empty) $ forever $ do
   res <- stateRace waitClients $ waitNewClient (chans^.lobbyChan)
   case res of
     Left (message, client) -> do
-      liftIO $ putStrLn $ "New message " ++ show message
       lobbyManagerAction chans client message
     Right client -> liftIO $ do
-      putStrLn "New client"
       topics <- entityVal <$$> withDB (selectList [] [])
       client^.channels.to writeMsg $ Topics topics
 

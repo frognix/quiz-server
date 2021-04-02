@@ -31,7 +31,7 @@ data StatusType = Ok
                 | NotFound
                 | AlreadyInDb
                 | BadMessageStructure
-                deriving (Show, Generic)
+                deriving (Show, Generic, Eq)
 
 instance ToJSON StatusType where
     toJSON = genericToJSON jsonOptions

@@ -25,7 +25,7 @@ instance FromJSON Topic where
     parseJSON = genericParseJSON jsonOptions
 
 data Player = Player { _login :: Text, _score :: Int }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq)
 
 makeLenses ''Player
 
@@ -35,7 +35,7 @@ instance FromJSON Player where
     parseJSON = genericParseJSON jsonOptions
 
 data Cell = Cell { _id :: Int, _playerLogin :: Text }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq)
 
 makeLenses ''Cell
 
@@ -45,7 +45,7 @@ instance FromJSON Cell where
     parseJSON = genericParseJSON jsonOptions
 
 data UserQuestion = UserQuestion { _text :: Text, _answers :: [Text] }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq)
 
 makeLenses ''UserQuestion
 
@@ -62,7 +62,7 @@ data ServerMessage = Status { _status :: StatusType }
                    | LobbyUpdate { _cells :: [Cell], _players :: [Player] }
                    | NewQuestion { _question :: [UserQuestion], _player :: Text, _time :: Int }
                    | GameEnd { _players :: [Player] }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq)
 
 makeLenses ''ServerMessage
 

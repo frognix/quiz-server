@@ -1,4 +1,4 @@
-name: Continous Integration
+name: Continuous Integration
 
 on:
   push:
@@ -32,4 +32,4 @@ jobs:
         run: stack build
 
       - name: Run tests
-        run: stack test
+        run: mkdir database && stack test

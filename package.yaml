@@ -35,6 +35,7 @@ dependencies:
 - async
 - mtl
 - containers
+- directory
 
 library:
   source-dirs: src
@@ -60,3 +61,4 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - quiz-server
+    - hspec

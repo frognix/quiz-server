@@ -22,16 +22,11 @@ readMsg chan = readChan $ outChan chan
 
 createClientThread :: ClientChan -> WS.Connection -> IO ()
 createClientThread chans conn = websocketThread conn onCreate onDestroy $ do
-  putStrLn "Client start read message"
   result <- race (readChan $ inChan chans) (decode <$> WS.receiveData conn)
-  putStrLn "Client read message"
   case result of
     Left  msg -> WS.sendTextData conn $ encode msg
     Right msg -> case msg of
       Nothing      -> WS.sendTextData conn $ encode $ Status BadMessageStructure
       Just message -> writeChan (outChan chans) message
-  putStrLn "Client answered"
-  where onCreate  = putStrLn "Client thread created"
-        onDestroy = do
-          writeChan (outChan chans) Disconnect
-          putStrLn "Client thread destroyed"
+  where onCreate  = return ()
+        onDestroy = writeChan (outChan chans) Disconnect
