@@ -66,7 +66,7 @@ deleteDB = do
 fillTables :: IO ()
 fillTables = withDB $ do
   insertUnique $ User "admin" "admin" True
-  insertUnique $ User "user" "12345" True
+  insertUnique $ User "user"  "12345" False
 
   progId <- insertUnique $ Topic "Programming" "Questions about programming"
   case progId of

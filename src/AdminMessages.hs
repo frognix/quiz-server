@@ -14,7 +14,7 @@ import Data.Text (Text)
 import Extra.Tools
 
 data AdminQuestion = AdminQuestion { _text :: Text, _correctAnswer :: Int, _answers :: [Text] }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq)
 
 makeLenses ''AdminQuestion
 
@@ -24,7 +24,7 @@ instance FromJSON AdminQuestion where
     parseJSON = genericParseJSON jsonOptions
 
 data AdminTopic = AdminTopic { _title :: Text, _info :: Text, _questions :: [AdminQuestion] }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq)
 
 makeLenses ''AdminTopic
 
@@ -37,7 +37,7 @@ data AdminMessage = Authorization { _login :: Text, _password :: Text }
                   | EditTopic { _topic :: AdminTopic }
                   | DeleteTopic { _topicTitle :: Text }
                   | GetTopicList
-                  deriving (Show, Generic)
+                  deriving (Show, Generic, Eq)
 
 makeLenses ''AdminMessage
 
@@ -48,7 +48,7 @@ instance FromJSON AdminMessage where
 
 data AdminServerMessage = TopicList { _topics :: [AdminTopic] }
                         | Status { _status :: StatusType }
-                        deriving (Show, Generic)
+                        deriving (Show, Generic, Eq)
 
 makeLenses ''AdminServerMessage
 

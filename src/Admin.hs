@@ -12,36 +12,32 @@ import Control.Monad.Extra (whenJust)
 import Control.Monad
 import Control.Exception (finally)
 import Control.Concurrent.Chan
-import Database.Persist
-import Database.Persist.Sqlite
+import Database.Persist hiding (get)
 import Database.Persist.TH
 import Data.Text (Text, unpack)
 import Data.Maybe
 import Control.Monad.IO.Class  (liftIO)
+import Control.Monad.State
 
 createAdmin :: WS.Connection -> IO ()
-createAdmin conn =  websocketThread conn onCreate onDestroy $ do
-  putStrLn "Admin created"
-  maybeMsg <- decode <$> WS.receiveData conn
-  withMaybe maybeMsg (return ()) $ \msg -> do
-    isAdmin <- withDB $ exists [
-      UserUsername ==. msg^.login,
-      UserAdmin    ==. True,
-      UserPassword ==. msg^.password]
-    let status = Status $ if isAdmin then Ok else NotFound
-    WS.sendTextData conn . encode $ status
-    guard isAdmin
-    putStrLn $ "Admin authorized: " ++ unpack (msg^.login)
-    authorizedAdmin conn
-  where onCreate  = putStrLn "Admin thread created"
-        onDestroy = putStrLn "Admin thread destoyed"
-
-authorizedAdmin :: WS.Connection -> IO ()
-authorizedAdmin conn = forever $ do
-  maybeMessage <- decode <$> WS.receiveData conn
-  withMaybe maybeMessage (return ()) $ \message -> do
-    serverAnwser <- adminAction message
-    WS.sendTextData conn $ encode serverAnwser
+createAdmin conn = websocketThread conn onCreate onDestroy $ flip evalStateT False $ do
+  maybeMsg <- decode <$> liftIO (WS.receiveData conn)
+  withMaybe maybeMsg (liftIO $ WS.sendTextData conn . encode $ Status BadMessageStructure) $ \msg -> do
+    adminAuthorized <- get
+    case adminAuthorized of
+      True  -> do
+        serverAnswser <- liftIO $ adminAction msg
+        liftIO $ WS.sendTextData conn $ encode serverAnswser
+      False -> do
+        isAdmin <- liftIO $ withDB $ exists [
+          UserUsername ==. msg^.login,
+          UserAdmin    ==. True,
+          UserPassword ==. msg^.password]
+        put isAdmin
+        let status = Status $ if isAdmin then Ok else NotFound
+        liftIO $ WS.sendTextData conn . encode $ status
+  where onCreate  = return ()
+        onDestroy = return ()
 
 toAdminTopic :: Topic -> [Question] -> AdminTopic
 toAdminTopic (Topic title info) questions = AdminTopic title info $ map toAdminQuestion questions

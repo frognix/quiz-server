@@ -92,6 +92,9 @@ test-suite quiz-server-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      AdminTests
+      ClientConnection
+      UserTests
       Paths_quiz_server
   hs-source-dirs:
       test
