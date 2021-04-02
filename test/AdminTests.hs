@@ -12,7 +12,7 @@ import ServerDB
 type AdminConnection = ClientConnection AdminMessage AdminServerMessage
 
 connectAdmin :: IO AdminConnection
-connectAdmin = connectClient "127.0.0.1" 8080 "admin"
+connectAdmin = connectClient "127.0.0.1" 8080 "/admin"
 
 testAdminAPI :: IO ()
 testAdminAPI = hspec $ describe "Admin API tests" $ do
