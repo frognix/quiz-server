@@ -1,12 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Server where
+module Server (runServer,mkServerConfig) where
 
-import Control.Lens
-
-import ServerMessages
-import ClientMessages
-import ServerDB
-import Services
+import AuthenticationService
+import Database.Actions
 import Channels
 import Admin
 import Extra.Tools
@@ -14,35 +10,39 @@ import LobbyManager
 import Client (createClientThread, mkClientChan)
 
 import qualified Network.WebSockets as WS
-import Data.Aeson (decode,encode)
-import Control.Monad.Extra (whenJust)
-import Control.Monad
-import Control.Exception (finally,try)
 import Control.Concurrent.Chan
-import Control.Concurrent (myThreadId, threadDelay)
-import Control.Concurrent.Async (race,async,runConcurrently, Concurrently (runConcurrently, Concurrently))
+import Control.Concurrent.Async (runConcurrently, Concurrently (runConcurrently, Concurrently))
 import Control.Applicative
 
-runServer :: IO ()
-runServer = do
+import ServerWorker
+
+runServer :: ServerConfig -> IO ()
+runServer = runServerWorker server
+
+server :: ServerWorker ()
+server = do
   initDB
-  lobbyManagerChan <- newChan
-  authenticationChan <- newChan
-  let chans = ServerChans authenticationChan lobbyManagerChan
-  _ <- runConcurrently $ foldl1 (<|>) $ map Concurrently [
-      authenticationService chans,
-      lobbyManagerService chans,
-      WS.runServer "127.0.0.1" 8080 $ clientHandler chans
+  config <- ask
+  liftIO $ runConcurrently $ foldl1 (<|>) $ map (\act -> Concurrently $ runServerWorker act config) [
+      authenticationService,
+      lobbyManagerService,
+      runWebServer clientHandler
     ]
   return ()
 
-clientHandler :: ServerChans -> WS.ServerApp
-clientHandler chans pending = do
-  conn <- WS.acceptRequest pending
+runWebServer :: (WS.PendingConnection -> ServerWorker ()) -> ServerWorker ()
+runWebServer func = do
+  config <- ask
+  let func' = (\conn -> runServerWorker (func conn) config)
+  liftIO $ WS.runServer "127.0.0.1" 8080 func'
+
+clientHandler :: WS.PendingConnection -> ServerWorker ()
+clientHandler pending = do
+  conn <- liftIO $ WS.acceptRequest pending
   withGuard (url == "/admin") $ createAdmin conn
-  clientChan <- newChan
-  serverChan <- newChan
+  clientChan <- liftIO newChan
+  serverChan <- liftIO newChan
   let channels = mkClientChan serverChan clientChan
-  writeChan (chans^.authChan) $ ConnectMsg channels
+  toAuth $ ConnectMsg channels
   createClientThread channels conn
   where url = WS.requestPath $ WS.pendingRequest pending

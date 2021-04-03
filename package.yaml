@@ -26,7 +26,6 @@ dependencies:
 - text
 - lens
 - persistent
-- unliftio-core
 - resourcet
 - monad-logger
 - persistent-sqlite
@@ -36,6 +35,7 @@ dependencies:
 - mtl
 - containers
 - directory
+- exceptions
 
 library:
   source-dirs: src

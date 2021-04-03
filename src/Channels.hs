@@ -3,14 +3,16 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Channels where
 
-import ServerMessages
 import ClientMessages
-import ServerDB
+import ServerMessages
+
 
 import Control.Lens
 import Control.Concurrent.Chan
 import qualified Network.WebSockets as WS
-import Client (ClientChan)
+import Database.Schema (User)
+
+data ClientChan = ClientChan { inChan :: Chan ServerMessage, outChan :: Chan UserMessage }
 
 data Client = Client { _user :: User, _channels :: ClientChan }
 

@@ -1,14 +1,9 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE TemplateHaskell #-}
 module Extra.Tools where
 
 import Data.Aeson
 import GHC.Generics ( Generic )
-import Control.Applicative ( Alternative, empty )
-import qualified Network.WebSockets as WS
-import qualified Network.WebSockets.Connection as WS
-import Control.Monad (forever, MonadPlus (mzero))
-import Control.Exception (finally, Exception (fromException))
+import Control.Monad (MonadPlus (mzero))
 import Control.Concurrent.Async
 
 withMaybe :: Maybe a -> b -> (a -> b) -> b
@@ -37,11 +32,6 @@ instance ToJSON StatusType where
     toJSON = genericToJSON jsonOptions
 instance FromJSON StatusType where
     parseJSON = genericParseJSON jsonOptions
-
-websocketThread :: WS.Connection -> IO () -> IO () -> IO () -> IO ()
-websocketThread conn onCreate onDestroy work = do
-  onCreate
-  flip finally onDestroy $ WS.withPingThread conn 30 (return ()) $ forever work
 
 fmap2 :: (Functor f1, Functor f2) => (a -> b) -> f1 (f2 a) -> f1 (f2 b)
 fmap2 = fmap . fmap

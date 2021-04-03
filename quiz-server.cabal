@@ -27,17 +27,20 @@ library
   exposed-modules:
       Admin
       AdminMessages
+      AuthenticationService
       Channels
       Client
       ClientMessages
+      Database
+      Database.Actions
+      Database.Schema
       Extra.State
       Extra.Tools
       LobbyManager
       PlayGround
       Server
-      ServerDB
       ServerMessages
-      Services
+      ServerWorker
   other-modules:
       Paths_quiz_server
   hs-source-dirs:
@@ -48,6 +51,7 @@ library
     , base >=4.7 && <5
     , containers
     , directory
+    , exceptions
     , extra
     , lens
     , monad-logger
@@ -57,7 +61,6 @@ library
     , persistent-template
     , resourcet
     , text
-    , unliftio-core
     , websockets
   default-language: Haskell2010
 
@@ -74,6 +77,7 @@ executable quiz-server-exe
     , base >=4.7 && <5
     , containers
     , directory
+    , exceptions
     , extra
     , lens
     , monad-logger
@@ -84,7 +88,6 @@ executable quiz-server-exe
     , quiz-server
     , resourcet
     , text
-    , unliftio-core
     , websockets
   default-language: Haskell2010
 
@@ -105,6 +108,7 @@ test-suite quiz-server-test
     , base >=4.7 && <5
     , containers
     , directory
+    , exceptions
     , extra
     , hspec
     , lens
@@ -116,6 +120,5 @@ test-suite quiz-server-test
     , quiz-server
     , resourcet
     , text
-    , unliftio-core
     , websockets
   default-language: Haskell2010

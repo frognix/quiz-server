@@ -1,4 +1,4 @@
-module Client (ClientChan(), mkClientChan, writeMsg, readMsg, createClientThread) where
+module Client (mkClientChan, writeMsg, readMsg, createClientThread) where
 
 import ServerMessages
 import ClientMessages
@@ -8,8 +8,8 @@ import Control.Concurrent.Chan
 import qualified Network.WebSockets as WS
 import Data.Aeson (decode,encode)
 import Control.Concurrent.Async (race)
-
-data ClientChan = ClientChan { inChan :: Chan ServerMessage, outChan :: Chan UserMessage }
+import Channels (ClientChan(..))
+import ServerWorker
 
 mkClientChan :: Chan ServerMessage -> Chan UserMessage -> ClientChan
 mkClientChan = ClientChan
@@ -20,13 +20,15 @@ writeMsg chan = writeChan (inChan chan)
 readMsg :: ClientChan -> IO UserMessage
 readMsg chan = readChan $ outChan chan
 
-createClientThread :: ClientChan -> WS.Connection -> IO ()
-createClientThread chans conn = websocketThread conn onCreate onDestroy $ do
+createClientThread :: ClientChan -> WS.Connection -> ServerWorker ()
+createClientThread chans conn = websocketThread conn onCreate onDestroy $ liftIO $ do
   result <- race (readChan $ inChan chans) (decode <$> WS.receiveData conn)
   case result of
     Left  msg -> WS.sendTextData conn $ encode msg
     Right msg -> case msg of
       Nothing      -> WS.sendTextData conn $ encode $ Status BadMessageStructure
       Just message -> writeChan (outChan chans) message
-  where onCreate  = return ()
-        onDestroy = writeChan (outChan chans) Disconnect
+  where onCreate  = putLog "Client connected"
+        onDestroy = do
+          putLog "Client disconnected"
+          liftIO $ writeChan (outChan chans) Disconnect

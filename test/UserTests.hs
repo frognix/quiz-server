@@ -8,7 +8,7 @@ import ClientMessages
 import ServerMessages
 import Extra.Tools
 import Server
-import ServerDB
+import Database
 
 type UserConnection = ClientConnection UserMessage ServerMessage
 

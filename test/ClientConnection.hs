@@ -45,7 +45,7 @@ getMessage :: (ToJSON i, FromJSON o) => ClientConnection i o -> IO o
 getMessage client = readChan (outChan client)
 
 request :: (ToJSON i, FromJSON o) => ClientConnection i o -> i -> IO o
-request client msg = requestWithTimer 5 client msg
+request = requestWithTimer 5
 
 requestWithoutTimer :: (ToJSON i, FromJSON o) => ClientConnection i o -> i -> IO o
 requestWithoutTimer client msg = do

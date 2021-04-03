@@ -7,7 +7,7 @@ import Test.Hspec
 import AdminMessages
 import Extra.Tools
 import Server
-import ServerDB
+import Database
 
 type AdminConnection = ClientConnection AdminMessage AdminServerMessage
 

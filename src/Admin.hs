@@ -2,42 +2,34 @@
 module Admin (createAdmin) where
 
 import AdminMessages
-import Channels
-import ServerDB
+import Database hiding (get)
 import Extra.Tools
 import Control.Lens
 import qualified Network.WebSockets as WS
 import Data.Aeson (decode, encode)
-import Control.Monad.Extra (whenJust)
 import Control.Monad
-import Control.Exception (finally)
-import Control.Concurrent.Chan
-import Database.Persist hiding (get)
-import Database.Persist.TH
-import Data.Text (Text, unpack)
-import Data.Maybe
-import Control.Monad.IO.Class  (liftIO)
 import Control.Monad.State
 
-createAdmin :: WS.Connection -> IO ()
-createAdmin conn = websocketThread conn onCreate onDestroy $ flip evalStateT False $ do
+import ServerWorker
+
+createAdmin :: WS.Connection -> ServerWorker ()
+createAdmin conn = flip evalStateT False $ websocketThread conn onCreate onDestroy $ do
   maybeMsg <- decode <$> liftIO (WS.receiveData conn)
   withMaybe maybeMsg (liftIO $ WS.sendTextData conn . encode $ Status BadMessageStructure) $ \msg -> do
     adminAuthorized <- get
-    case adminAuthorized of
-      True  -> do
-        serverAnswser <- liftIO $ adminAction msg
-        liftIO $ WS.sendTextData conn $ encode serverAnswser
-      False -> do
-        isAdmin <- liftIO $ withDB $ exists [
-          UserUsername ==. msg^.login,
-          UserAdmin    ==. True,
-          UserPassword ==. msg^.password]
-        put isAdmin
-        let status = Status $ if isAdmin then Ok else NotFound
-        liftIO $ WS.sendTextData conn . encode $ status
-  where onCreate  = return ()
-        onDestroy = return ()
+    if adminAuthorized then do
+      serverAnswser <- lift $ adminAction msg
+      liftIO $ WS.sendTextData conn $ encode serverAnswser
+    else do
+     isAdmin <- lift $ withDB $ exists [
+       UserUsername ==. msg^.login,
+       UserAdmin    ==. True,
+       UserPassword ==. msg^.password]
+     put isAdmin
+     let status = Status $ if isAdmin then Ok else NotFound
+     liftIO $ WS.sendTextData conn . encode $ status
+  where onCreate  = lift $ putLog "Admin thread created"
+        onDestroy = lift $ putLog "Admin thread destroyed"
 
 toAdminTopic :: Topic -> [Question] -> AdminTopic
 toAdminTopic (Topic title info) questions = AdminTopic title info $ map toAdminQuestion questions
@@ -45,7 +37,7 @@ toAdminTopic (Topic title info) questions = AdminTopic title info $ map toAdminQ
 toAdminQuestion :: Question -> AdminQuestion
 toAdminQuestion (Question text _ answer answers) = AdminQuestion text answer answers
 
-adminAction :: AdminMessage -> IO AdminServerMessage
+adminAction :: AdminMessage -> ServerWorker AdminServerMessage
 adminAction GetTopicList = withDB $ do
   topics <- selectList [] []
   adminTopics <- forM topics $ \(Entity key topic) -> do
