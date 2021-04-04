@@ -26,6 +26,7 @@ data StatusType = Ok
                 | NotFound
                 | AlreadyInDb
                 | BadMessageStructure
+                | AlreadyConnected
                 deriving (Show, Generic, Eq)
 
 instance ToJSON StatusType where

@@ -5,53 +5,49 @@ import Database
 import ServerMessages
 import ClientMessages
 import Channels
-import Extra.Tools ( StatusType(NotFound, AlreadyInDb, Ok, UnexpectedMessageType), withMaybe)
+import Extra.Tools
 import Client (readMsg,writeMsg)
 import Control.Lens
 import Control.Monad
-import Control.Concurrent (newMVar, modifyMVar_, readMVar)
 import Data.Maybe
 import Data.Text (Text)
-import Control.Concurrent.Extra (MVar)
 import Data.List
+import Control.Monad.State
 import ServerWorker
 
+type Users = [Text]
+
+type AuthenticationServiceState = StateT Users ServerWorker
+
 authenticationService :: ServerWorker ()
-authenticationService = do
-  putLog "Start authentication service"
-  connectedUsers <- liftIO $ newMVar []
+authenticationService = flip evalStateT [] $ do
+  lift $ putLog "Start authentication service"
   forever $ do
-    client <- fromAuth
-    putLog "Authentication: new client"
+    client <- lift fromAuth
+    lift . putLog $ "Authentication: new client"
     case client of
       ConnectMsg conn -> do
         msg <- liftIO $ readMsg conn
-        putLog $ "Authentication: receive message: " ++ show msg
-        handleUserMessage connectedUsers client conn msg
+        lift . putLog $ "Authentication: receive message: " ++ show msg
+        handleUserMessage client conn msg
       DisconnectMsg client -> do
-        liftIO $ modifyMVar_ connectedUsers $ deleteFromListIO . userUsername $ client^.user
+        modify $ filter (/=client^.user.to userUsername)
 
-handleUserMessage :: MVar [Text] -> Connection -> ClientChan -> UserMessage -> ServerWorker ()
-handleUserMessage _ connection clientChan (Registration login password) = do
-  maybeKey <- withDB $ insertUnique $ User login password False
-  toAuth connection
+handleUserMessage :: Connection -> ClientChan -> UserMessage -> AuthenticationServiceState ()
+handleUserMessage connection clientChan (Registration login password) = do
+  maybeKey <- lift . withDB $ insertUnique $ User login password False
+  lift $ toAuth connection
   liftIO $ writeMsg clientChan $ Status $ if isJust maybeKey then Ok else AlreadyInDb
-handleUserMessage connectedUsers connection clientChan (Authorization login password) = do
-  maybeUser <- withDB $ selectFirst [UserUsername ==. login, UserPassword ==. password] []
-  withMaybe maybeUser (toAuth connection) $ \(Entity _ user) -> do
-    toLobby $ Client user clientChan
-    isUserExist <- liftIO $ findMVar login connectedUsers
-    liftIO $ when isUserExist $ modifyMVar_ connectedUsers $ addToListIO login
-  liftIO $ writeMsg clientChan $ Status $ if isJust maybeUser then Ok else NotFound
-handleUserMessage _ _ clientChan _ = liftIO $ writeMsg clientChan $ Status UnexpectedMessageType
-
-addToListIO :: a -> [a] -> IO [a]
-addToListIO x xs = return $ x : xs
-
-deleteFromListIO :: Eq a => a -> [a] -> IO [a]
-deleteFromListIO x xs = return $ filter (/= x) xs
-
-findMVar :: Eq a => a -> MVar [a] -> IO Bool
-findMVar x mvar = do
-  xs <- readMVar mvar
-  return $ isNothing $ find (== x) xs
+handleUserMessage connection clientChan (Authorization login password) = do
+  maybeUser <- lift . withDB $ selectFirst [UserUsername ==. login, UserPassword ==. password] []
+  status <- withMaybe maybeUser (lift $ toAuth connection >> return (Status NotFound)) $ \(Entity _ user) -> do
+    userConnected <- gets (elem login)
+    if userConnected then do
+      lift $ toAuth connection
+      return $ Status AlreadyConnected
+    else do
+      modify (login :)
+      lift . toLobby $ Client user clientChan
+      return $ Status Ok
+  liftIO $ writeMsg clientChan status
+handleUserMessage _ clientChan _ = liftIO $ writeMsg clientChan $ Status UnexpectedMessageType
