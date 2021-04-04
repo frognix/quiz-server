@@ -77,8 +77,10 @@ lobbyManagerService = do
     res <- workerRace waitClients waitNewClient
     case res of
       Left (message, client) -> do
+        lift . putLog $ "Lobby: new message" ++ show message
         lobbyManagerAction client message
       Right client -> do
+        lift . putLog $ "Lobby: new client" ++ show (client^.user)
         topics <- lift $ entityVal <$$> withDB (selectList [] [])
         liftIO $ client^.channels.to writeMsg $ Topics topics
 
@@ -89,9 +91,10 @@ lobbyManagerAction client (SelectTopic topic) = do
   topicExists <- lift . withDB $ exists [TopicTitle ==. topic]
   let status = Status $ if topicExists then Ok else NotFound
   liftIO $ client^.channels.to writeMsg $ status
-  when topicExists $ do
+  if topicExists then do
     maybeClient <- withMap $ gets (Map.lookup topic)
     withMaybe maybeClient (withMap $ modify $ Map.insert topic client) $ \client' -> do
       lift $ createPlayGround (client', client) []
       withMap $ modify $ Map.delete topic
+  else lift $ toLobby client
 lobbyManagerAction client _  = liftIO $ client^.channels.to writeMsg $ Status UnexpectedMessageType

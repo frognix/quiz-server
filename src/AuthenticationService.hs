@@ -22,9 +22,11 @@ authenticationService = do
   connectedUsers <- liftIO $ newMVar []
   forever $ do
     client <- fromAuth
+    putLog "Authentication: new client"
     case client of
       ConnectMsg conn -> do
         msg <- liftIO $ readMsg conn
+        putLog $ "Authentication: receive message: " ++ show msg
         handleUserMessage connectedUsers client conn msg
       DisconnectMsg client -> do
         liftIO $ modifyMVar_ connectedUsers $ deleteFromListIO . userUsername $ client^.user

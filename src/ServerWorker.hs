@@ -18,11 +18,12 @@ import Extra.State (putReturn)
 
 import Control.Monad.Reader
 import Control.Monad.State
-import Control.Concurrent.Async (race)
+import Control.Concurrent.Async (race,async,cancel)
 import Data.Text (Text)
 import qualified Network.WebSockets as WS
 import Control.Monad.Catch
 import Control.Concurrent.Chan
+import Control.Concurrent (threadDelay)
 
 data ServerAddress = ServerAddress { ip :: String, port :: Int }
 
@@ -77,7 +78,10 @@ askAddress = asks address
 websocketThread :: (Monad m, MonadIO m, MonadMask m) => WS.Connection -> m () -> m () -> m () -> m ()
 websocketThread conn onCreate onDestroy work = do
   onCreate
-  finally (forever work) onDestroy
+  ping <- liftIO $ async $ forever $ do
+    threadDelay (30*1000*1000)
+    WS.sendPing conn ("Ping" :: Text)
+  finally (forever work) $ onDestroy >> liftIO (cancel ping)
 
 workerRace :: StateT s ServerWorker a -> StateT s ServerWorker b -> StateT s ServerWorker (Either a b)
 workerRace first second = do

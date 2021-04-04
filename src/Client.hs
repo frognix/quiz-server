@@ -21,12 +21,14 @@ readMsg :: ClientChan -> IO UserMessage
 readMsg chan = readChan $ outChan chan
 
 createClientThread :: ClientChan -> WS.Connection -> ServerWorker ()
-createClientThread chans conn = websocketThread conn onCreate onDestroy $ liftIO $ do
-  result <- race (readChan $ inChan chans) (decode <$> WS.receiveData conn)
-  case result of
+createClientThread chans conn = websocketThread conn onCreate onDestroy $ do
+  result <- liftIO $ race (readChan $ inChan chans) (decode <$> WS.receiveData conn)
+  putLog $ "Client: new message: " ++ show result
+  liftIO $ case result of
     Left  msg -> WS.sendTextData conn $ encode msg
     Right msg -> case msg of
       Nothing      -> WS.sendTextData conn $ encode $ Status BadMessageStructure
+      Just Disconnect -> error "Client disconnected"
       Just message -> writeChan (outChan chans) message
   where onCreate  = putLog "Client connected"
         onDestroy = do
