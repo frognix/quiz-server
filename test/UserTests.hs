@@ -9,11 +9,15 @@ import ServerMessages
 import Extra.Tools
 import Server
 import Database
+import Data.Aeson (encode)
 
 type UserConnection = ClientConnection UserMessage ServerMessage
 
 connectUser :: IO UserConnection
 connectUser = connectClient "127.0.0.1" 8080 ""
+
+connectRawUser :: IO RawConnection
+connectRawUser = connectRawClient "127.0.0.1" 8080 ""
 
 testUserAPI :: IO ()
 testUserAPI = hspec $ describe "User API tests" $ do
@@ -22,6 +26,11 @@ testUserAPI = hspec $ describe "User API tests" $ do
 
 authTest :: Spec
 authTest = describe "User authorization" $ do
+  it "shoud reject incorrect message format" $ do
+    client <- connectRawUser
+    msg <- request client "This message is in the wrong format"
+    msg `shouldBe` encode (Status BadMessageStructure)
+    closeClient client
   it "should create new user" $ do
     client <- connectUser
     msg <- request client $ Registration "user2" "qwerty"

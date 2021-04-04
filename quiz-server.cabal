@@ -106,6 +106,7 @@ test-suite quiz-server-test
       aeson
     , async
     , base >=4.7 && <5
+    , bytestring
     , containers
     , directory
     , exceptions
