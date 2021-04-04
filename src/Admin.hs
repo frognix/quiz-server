@@ -22,9 +22,9 @@ createAdmin conn = flip evalStateT False $ websocketThread conn onCreate onDestr
       liftIO $ WS.sendTextData conn $ encode serverAnswser
     else do
      isAdmin <- lift $ withDB $ exists [
-       UserUsername ==. msg^.login,
+       UserUsername ==. login msg,
        UserAdmin    ==. True,
-       UserPassword ==. msg^.password]
+       UserPassword ==. password msg]
      put isAdmin
      let status = Status $ if isAdmin then Ok else NotFound
      liftIO $ WS.sendTextData conn . encode $ status
