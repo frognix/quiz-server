@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Server (runServer,mkServerConfig) where
+module Server (runServer,mkServerConfig,ServerAddress(..)) where
 
 import AuthenticationService
 import Database.Actions
@@ -33,8 +33,9 @@ server = do
 runWebServer :: (WS.PendingConnection -> ServerWorker ()) -> ServerWorker ()
 runWebServer func = do
   config <- ask
+  ServerAddress ip port <- askAddress
   let func' = (\conn -> runServerWorker (func conn) config)
-  liftIO $ WS.runServer "127.0.0.1" 8080 func'
+  liftIO $ WS.runServer ip port func'
 
 clientHandler :: WS.PendingConnection -> ServerWorker ()
 clientHandler pending = do

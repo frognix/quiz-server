@@ -2,12 +2,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 module ServerWorker (
   ServerWorker(),
+  ServerAddress(..),
   ServerConfig,
   runServerWorker,
   websocketThread,
   putLog, workerRace,
   toAuth, fromAuth, toLobby, fromLobby,
-  liftIO, ask, askDatabase, mkServerConfig) where
+  liftIO, ask, askDatabase, askAddress, mkServerConfig) where
 
 import Control.Monad
 import Control.Applicative
@@ -23,14 +24,16 @@ import qualified Network.WebSockets as WS
 import Control.Monad.Catch
 import Control.Concurrent.Chan
 
-data ServerConfig = ServerConfig { dataBase :: Text, serverChans :: ServerChans, logs :: Bool }
+data ServerAddress = ServerAddress { ip :: String, port :: Int }
 
-mkServerConfig :: Text -> Bool -> IO ServerConfig
-mkServerConfig db logs = do
+data ServerConfig = ServerConfig { address :: ServerAddress, dataBase :: Text, serverChans :: ServerChans, logs :: Bool }
+
+mkServerConfig :: ServerAddress -> Text -> Bool -> IO ServerConfig
+mkServerConfig addr db logs = do
   lobbyManagerChan   <- liftIO newChan
   authenticationChan <- liftIO newChan
   let chans = ServerChans authenticationChan lobbyManagerChan
-  return $ ServerConfig db chans logs
+  return $ ServerConfig addr db chans logs
 
 newtype ServerWorker a = ServerWorker {
   runSW :: ReaderT ServerConfig IO a
@@ -67,6 +70,9 @@ fromLobby = do
 
 askDatabase :: ServerWorker Text
 askDatabase = asks dataBase
+
+askAddress :: ServerWorker ServerAddress
+askAddress = asks address
 
 websocketThread :: (Monad m, MonadIO m, MonadMask m) => WS.Connection -> m () -> m () -> m () -> m ()
 websocketThread conn onCreate onDestroy work = do

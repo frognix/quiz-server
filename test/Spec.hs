@@ -12,7 +12,7 @@ import Control.Concurrent
 
 main :: IO ()
 main = do
-  config <- mkServerConfig "./database/quiz-database.sqlite" False
+  config <- mkServerConfig (ServerAddress "127.0.0.1" 8080) "./database/quiz-database.sqlite" False
   flip runServerWorker config $ do
     deleteDB
     initDB
