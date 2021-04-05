@@ -26,7 +26,7 @@ User
     password Text
     admin Bool
     UniqueUsername username
-    deriving Show
+    deriving Show Eq
 Topic
     title Text
     info Text

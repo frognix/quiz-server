@@ -31,6 +31,7 @@ authenticationService = flip evalStateT [] $ do
         lift . putLog $ "Authentication: receive message: " ++ show msg
         handleUserMessage client conn msg
       DisconnectMsg client -> do
+        lift . putLog $ "Authentication: client disconnected: " ++ show (client^.user.to userUsername)
         modify $ filter (/=client^.user.to userUsername)
 
 handleUserMessage :: Connection -> ClientChan -> UserMessage -> AuthenticationServiceState ()
