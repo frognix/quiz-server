@@ -19,7 +19,7 @@ instance ToJSON Topic where
 instance FromJSON Topic where
     parseJSON = genericParseJSON jsonOptions
 
-data Player = Player { _login :: Text, _score :: Int }
+data Player = Player { _username :: Text, _score :: Int }
   deriving (Show, Generic, Eq)
 
 makeLenses ''Player
@@ -52,7 +52,7 @@ instance FromJSON UserQuestion where
 {- Define ServerMessage type -}
 data ServerMessage = Status { _status :: StatusType }
                    | Topics { _topics :: [Topic] }
-                   | LobbyInfo { _topic :: Topic, _players :: [Player] }
+                   | LobbyInfo { _topic :: Text, _players :: [Player] }
                    | YourMove
                    | LobbyUpdate { _cells :: [Cell], _players :: [Player] }
                    | NewQuestion { _question :: [UserQuestion], _player :: Text, _time :: Int }

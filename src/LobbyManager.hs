@@ -41,10 +41,10 @@ clientWaiter client = linkAsync $ do
   return (msg, client)
 
 withMap :: MapState r -> LobbyManagerState r
-withMap = withSnd
+withMap = zoom _2
 
 withClients :: ClientsState r -> LobbyManagerState r
-withClients = withFst
+withClients = zoom _1
 
 -- | Waits all clients from list and returns
 -- a responce from the first client to be completed,
@@ -94,6 +94,8 @@ lobbyManagerAction client (SelectTopic topic) = do
   if topicExists then do
     maybeClient <- withMap $ gets (Map.lookup topic)
     withMaybe maybeClient (withMap $ modify $ Map.insert topic client) $ \client' -> do
+      let lobbyInfo = LobbyInfo topic $ [client', client]^..folded.user.to userUsername.to (`Player` 0)
+      liftIO $ [client',client]^.traversed.channels.to writeMsg $ lobbyInfo
       lift $ createPlayGround (client', client) []
       withMap $ modify $ Map.delete topic
   else lift $ toLobby client
