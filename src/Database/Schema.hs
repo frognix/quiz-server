@@ -20,6 +20,8 @@ import Database.Persist.TH
 import GHC.Generics
 import Data.Text (Text)
 
+import Extra.Tools (AnswerId(..))
+
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 User
     username Text
@@ -35,7 +37,7 @@ Topic
 Question
     text Text
     topicId TopicId
-    correctAnswer Int
+    correctAnswer AnswerId
     answers [Text]
     deriving Show
 |]

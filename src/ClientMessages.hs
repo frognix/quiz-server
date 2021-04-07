@@ -17,8 +17,9 @@ import Extra.Tools
 data UserMessage = Registration { _login :: Text, _password :: Text }
                  | Authorization { _login :: Text, _password :: Text }
                  | SelectTopic { _title :: Text }
-                 | SelectCell { _id :: Int }
-                 | SelectAnswer { _id :: Int }
+                 | SelectCell { _cellId :: CellId }
+                 | SelectAnswer { _answerId :: AnswerId }
+                 | QuitGame
                  | Disconnect
                  deriving (Show, Generic)
 

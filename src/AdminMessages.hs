@@ -10,7 +10,7 @@ import Data.Text (Text)
 
 import Extra.Tools
 
-data AdminQuestion = AdminQuestion { text :: Text, correctAnswer :: Int, answers :: [Text] }
+data AdminQuestion = AdminQuestion { text :: Text, correctAnswer :: AnswerId, answers :: [Text] }
   deriving (Show, Generic, Eq)
 
 instance ToJSON AdminQuestion where

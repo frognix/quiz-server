@@ -12,9 +12,9 @@ import Control.Concurrent.Chan
 import qualified Network.WebSockets as WS
 import Database.Schema (User)
 
-data ClientChan = ClientChan { inChan :: Chan ServerMessage, outChan :: Chan UserMessage }
+data ClientChan = ClientChan { inChan :: Chan ServerMessage, outChan :: Chan UserMessage } deriving Eq
 
-data Client = Client { _user :: User, _channels :: ClientChan }
+data Client = Client { _user :: User, _channels :: ClientChan } deriving Eq
 
 makeLenses ''Client
 

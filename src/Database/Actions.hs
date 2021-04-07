@@ -2,6 +2,7 @@
 module Database.Actions where
 
 import Database
+import Extra.Tools
 import System.Directory
 import ServerWorker
 import Data.Text
@@ -24,7 +25,7 @@ fillTables = withDB $ do
   case maybeId of
     Nothing -> return ()
     Just topic -> do
-      insert_ $ Question "What is C++" topic 1 ["Programming language",
+      insert_ $ Question "What is C++" topic SecondAnswer ["Programming language",
                                             "The best programming language in the world",
                                             "fish",
                                             "Just three letters"]

@@ -20,10 +20,10 @@ connectRawAdmin = connectRawClient "127.0.0.1" 8080 "/admin"
 
 programmingTopic :: AdminTopic
 programmingTopic = AdminTopic "Programming" "Questions about programming" [
-  AdminQuestion "What is C++" 1 ["Programming language",
-                                 "The best programming language in the world",
-                                 "fish",
-                                 "Just three letters"]]
+  AdminQuestion "What is C++" SecondAnswer ["Programming language",
+                                           "The best programming language in the world",
+                                           "fish",
+                                           "Just three letters"]]
 
 newTopic :: AdminTopic
 newTopic = AdminTopic "New topic" "new" []

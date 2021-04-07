@@ -58,7 +58,7 @@ authTest = describe "User authorization" $ do
     closeClient client
   it "should return error on unexpected message" $ do
     client <- connectUser
-    msg <- request client $ SelectAnswer 1
+    msg <- request client $ SelectAnswer FirstAnswer
     msg `shouldBe` Status UnexpectedMessageType
     closeClient client
 
