@@ -106,7 +106,10 @@ removeClient client = filter ((/=(client^.user)) . _user . snd)
 lobbyManagerAction :: Client -> UserMessage -> LobbyManagerState ()
 lobbyManagerAction client Disconnect = do
   withMap $ modify $ removeClient client
-  lift . toAuth $ DisconnectMsg client
+  lift . toAuth $ DisconnectMsg Disconnect client
+lobbyManagerAction client LogOut = do
+  withMap $ modify $ removeClient client
+  lift . toAuth $ DisconnectMsg LogOut client
 lobbyManagerAction client (SelectTopic topic) = do
   maybeId <- lift . withDB $ entityKey <$$> selectFirst [TopicTitle ==. topic] []
   let status = Status $ if isJust maybeId then Ok else NotFound

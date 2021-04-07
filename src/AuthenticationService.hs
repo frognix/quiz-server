@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 module AuthenticationService where
 
 import Database
@@ -14,41 +15,68 @@ import Data.Text (Text)
 import Data.List
 import Control.Monad.State
 import ServerWorker
+import Control.Concurrent.Async
+import Control.Concurrent (threadDelay)
 
-type Users = [Text]
+type ClientWorker = Async (UserMessage, ClientChan)
 
-type AuthenticationServiceState = StateT Users ServerWorker
+newClientWorker :: ClientChan -> IO ClientWorker
+newClientWorker chan = linkAsync $ do
+  msg <- readMsg chan
+  return (msg, chan)
+
+data AuthenticationServiceState = AuthenticationServiceState { _clients :: [ClientWorker],  _authorizedClients :: [Text] }
+
+makeLenses ''AuthenticationServiceState
+
+type AuthenticationService = StateT AuthenticationServiceState ServerWorker
+
+waitClients :: AuthenticationService (UserMessage, ClientChan)
+waitClients = do
+  clients' <- use clients
+  liftIO $ when (null clients') . forever $ threadDelay 1000000
+  (thread, responce@(msg, client)) <- liftIO $ waitAny clients'
+  zoom clients $ modify $ filter (/=thread)
+  return responce
+
+waitNewClient :: AuthenticationService Connection
+waitNewClient = lift fromAuth
+
+addClient :: ClientChan -> AuthenticationService ()
+addClient chan = do
+  worker <- liftIO $ newClientWorker chan
+  zoom clients $ modify (worker :)
 
 authenticationService :: ServerWorker ()
-authenticationService = flip evalStateT [] $ do
+authenticationService = flip evalStateT (AuthenticationServiceState [] []) $ do
   lift $ putLog "Start authentication service"
   forever $ do
-    client <- lift fromAuth
+    msg <- workerRace waitNewClient waitClients
     lift . putLog $ "Authentication: new client"
-    case client of
-      ConnectMsg conn -> do
-        msg <- liftIO $ readMsg conn
-        lift . putLog $ "Authentication: receive message: " ++ show msg
-        handleUserMessage client conn msg
-      DisconnectMsg client -> do
-        lift . putLog $ "Authentication: client disconnected: " ++ show (client^.user.to userUsername)
-        modify $ filter (/=client^.user.to userUsername)
+    case msg of
+      Left client -> case client of
+        ConnectMsg conn -> addClient conn
+        DisconnectMsg msg client -> do
+          lift . putLog $ "Authentication: client disconnected: " ++ show (client^.user.to userUsername)
+          zoom authorizedClients $ modify $ filter (/=client^.user.to userUsername)
+          when (msg == LogOut) . lift . toAuth . ConnectMsg $ client^.channels
+      Right (msg, client) -> handleUserMessage client msg
 
-handleUserMessage :: Connection -> ClientChan -> UserMessage -> AuthenticationServiceState ()
-handleUserMessage connection clientChan (Registration login password) = do
+handleUserMessage :: ClientChan -> UserMessage -> AuthenticationService ()
+handleUserMessage clientChan (Registration login password) = do
   maybeKey <- lift . withDB $ insertUnique $ User login password False
-  lift $ toAuth connection
+  lift $ toAuth $ ConnectMsg clientChan
   liftIO $ writeMsg clientChan $ Status $ if isJust maybeKey then Ok else AlreadyInDb
-handleUserMessage connection clientChan (Authorization login password) = do
+handleUserMessage clientChan (Authorization login password) = do
   maybeUser <- lift . withDB $ selectFirst [UserUsername ==. login, UserPassword ==. password] []
-  status <- withMaybe maybeUser (lift $ toAuth connection >> return (Status NotFound)) $ \(Entity _ user) -> do
-    userConnected <- gets (elem login)
+  status <- withMaybe maybeUser (lift $ toAuth (ConnectMsg clientChan) >> return (Status NotFound)) $ \(Entity _ user) -> do
+    userConnected <- zoom authorizedClients $ gets (elem login)
     if userConnected then do
-      lift $ toAuth connection
+      lift $ toAuth $ ConnectMsg clientChan
       return $ Status AlreadyConnected
     else do
-      modify (login :)
+      zoom authorizedClients $ modify (login :)
       lift . toLobby $ Client user clientChan
       return $ Status Ok
   liftIO $ writeMsg clientChan status
-handleUserMessage _ clientChan _ = liftIO $ writeMsg clientChan $ Status UnexpectedMessageType
+handleUserMessage clientChan _ = liftIO $ writeMsg clientChan $ Status UnexpectedMessageType

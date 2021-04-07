@@ -46,7 +46,7 @@ nearCells FourthCell = [FifthCell]
 nearCells FifthCell  = [FourthCell, SixthCell]
 nearCells SixthCell  = [FifthCell]
 
-data PlayGroundState = FirstUser | SecondUser | Start | UserDisconnected Client Client | EndGame deriving Eq
+data PlayGroundState = FirstUser | SecondUser | Start | UserDisconnected UserMessage Client Client | EndGame deriving Eq
 
 data PlayGround = PlayGround { _field :: Field, _state :: PlayGroundState, _score :: (Int,Int), _questions :: [Question] }
 
@@ -168,6 +168,7 @@ getMessageLoop func = do
   liftSW . putLog $ "PlayGround: Message loop message: " ++ show msg
   case msg of
     Disconnect -> mzero
+    LogOut     -> mzero
     _ -> do
       res <- func msg
       case res of
@@ -202,9 +203,9 @@ askUser = do
 
 tryAction :: PlayGroundWorker () -> PlayGroundWorker ()
 tryAction action = mplus action $ do
-  client <- curClient
+  client  <- curClient
   client' <- anotherClient
-  state .= UserDisconnected client client'
+  state .= UserDisconnected LogOut client client'
 
 playGroundLoop :: PlayGroundWorker ()
 playGroundLoop = do
@@ -218,8 +219,8 @@ playGroundLoop = do
       FirstUser  -> tryAction $ askUser >> (state .= SecondUser)
       SecondUser -> tryAction $ askUser >> (state .= FirstUser)
       EndGame    -> sendGameEndMessage
-      UserDisconnected client client' -> do
-        liftSW . toAuth $ DisconnectMsg client
+      UserDisconnected msg client client' -> do
+        liftSW . toAuth $ DisconnectMsg msg client
         liftIO . writeMsg (client'^.channels) $ Status OpponentDisconnected
         liftSW . toLobby $ client'
         mzero

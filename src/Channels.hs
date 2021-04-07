@@ -21,7 +21,7 @@ makeLenses ''Client
 type LobbyManagerChan = Chan Client
 
 data Connection = ConnectMsg ClientChan
-                | DisconnectMsg Client
+                | DisconnectMsg UserMessage Client
 
 type AuthenticationChan = Chan Connection
 type AdminChan = Chan WS.Connection

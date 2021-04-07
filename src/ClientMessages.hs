@@ -20,8 +20,9 @@ data UserMessage = Registration { _login :: Text, _password :: Text }
                  | SelectCell { _cellId :: CellId }
                  | SelectAnswer { _answerId :: AnswerId }
                  | QuitGame
+                 | LogOut
                  | Disconnect
-                 deriving (Show, Generic)
+                 deriving (Show, Generic, Eq)
 
 --Create lenses for UserMessage
 makeLenses ''UserMessage
