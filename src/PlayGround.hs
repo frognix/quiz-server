@@ -107,6 +107,11 @@ sendMessage msg = do
   chan <- withClient channels
   liftIO $ writeMsg chan msg
 
+sendMessageAnother :: ServerMessage -> PlayGroundWorker ()
+sendMessageAnother msg = do
+  client <- anotherClient
+  liftIO $ writeMsg (client^.channels) msg
+
 request :: ServerMessage -> PlayGroundWorker UserMessage
 request msg = do
   sendMessage msg
@@ -180,6 +185,7 @@ askUser :: PlayGroundWorker ()
 askUser = do
   liftSW . putLog $ "PlayGround: Start ask user"
   sendMessage YourMove
+  sendMessageAnother NotYourMove
   cell <- getMessageLoop $ \case
     SelectCell cell -> do
       cellNear <- cellNearUser cell

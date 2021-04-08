@@ -41,7 +41,7 @@ instance FromJSON GameEndState where
 data ServerMessage = Status { _status :: StatusType }
                    | Topics { _topics :: [Topic] }
                    | LobbyInfo { _topic :: Text, _players :: [Text] }
-                   | YourMove
+                   | YourMove | NotYourMove
                    | LobbyUpdate { _cellId :: CellId, _score :: Int, _player :: Text }
                    | NewQuestion { _question :: UserQuestion, _player :: Text, _time :: Int }
                    | GameEnd { _situation :: GameEndState, _score :: Int }
