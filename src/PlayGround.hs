@@ -197,13 +197,13 @@ askUser = do
   questions %= tail
   login <- withClient $ user.to userUsername
   sendMessage $ NewQuestion (UserQuestion qtext answers) login 10
-  getMessageLoop $ \case
+  action <- getMessageLoop $ \case
     SelectAnswer answer -> do
       if answer == corAnswer then do
-        setCell cell
-        return $ End ()
-      else return $ EndStatus NotFound ()
+        return $ End (setCell cell)
+      else return $ EndStatus NotFound (return ())
     _ -> return $ Next UnexpectedMessageType
+  action
   liftSW . putLog $ "PlayGround: End ask user"
   return ()
 

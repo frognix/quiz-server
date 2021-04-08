@@ -52,15 +52,18 @@ authenticationService = flip evalStateT (AuthenticationServiceState [] []) $ do
   lift $ putLog "Start authentication service"
   forever $ do
     msg <- workerRace waitNewClient waitClients
-    lift . putLog $ "Authentication: new client"
     case msg of
-      Left client -> case client of
-        ConnectMsg conn -> addClient conn
-        DisconnectMsg msg client -> do
-          lift . putLog $ "Authentication: client disconnected: " ++ show (client^.user.to userUsername)
-          zoom authorizedClients $ modify $ filter (/=client^.user.to userUsername)
-          when (msg == LogOut) . lift . toAuth . ConnectMsg $ client^.channels
-      Right (msg, client) -> handleUserMessage client msg
+      Left client -> do
+        lift . putLog $ "Authentication: new client"
+        case client of
+          ConnectMsg conn -> addClient conn
+          DisconnectMsg msg client -> do
+            lift . putLog $ "Authentication: client disconnected: " ++ show (client^.user.to userUsername)
+            zoom authorizedClients $ modify $ filter (/=client^.user.to userUsername)
+            when (msg == LogOut) $ lift . toAuth . ConnectMsg $ client^.channels
+      Right (msg, client) -> do
+        lift . putLog $ "Authentication: new message: " ++ show msg
+        handleUserMessage client msg
 
 handleUserMessage :: ClientChan -> UserMessage -> AuthenticationService ()
 handleUserMessage clientChan (Registration login password) = do
@@ -79,4 +82,5 @@ handleUserMessage clientChan (Authorization login password) = do
       lift . toLobby $ Client user clientChan
       return $ Status Ok
   liftIO $ writeMsg clientChan status
+handleUserMessage clientChan Disconnect = return ()
 handleUserMessage clientChan _ = liftIO $ writeMsg clientChan $ Status UnexpectedMessageType

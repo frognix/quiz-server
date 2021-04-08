@@ -87,8 +87,9 @@ waitNewClient = do
 lobbyManagerService :: ServerWorker ()
 lobbyManagerService = do
   flip evalStateT (Map.empty, []) $ forever $ do
+    lift . putLog $ "Start lobby manager service"
     users <- withMap $ gets (map fst)
-    lift . putLog $ show users
+    lift . putLog $ "Lobby manager: users who chose a theme: " ++ show users
     res <- workerRace waitClients waitNewClient
     case res of
       Left (message, client) -> do
