@@ -24,8 +24,19 @@ import qualified Network.WebSockets as WS
 import Control.Monad.Catch
 import Control.Concurrent.Chan
 import Control.Concurrent (threadDelay)
+import Data.List.Extra (splitOn)
+import Text.Read (readMaybe)
 
 data ServerAddress = ServerAddress { ip :: String, port :: Int }
+
+instance Show ServerAddress where
+  show (ServerAddress ip port) = ip ++ ":" ++ show port
+
+instance Read ServerAddress where
+  readsPrec _ str = parse $ splitOn ":" str
+    where parse :: [String] -> [(ServerAddress, String)]
+          parse [addr, port] = maybe [] (\p -> [(ServerAddress addr p, "")]) (readMaybe port)
+          parse _            = []
 
 data ServerConfig = ServerConfig { address :: ServerAddress, dataBase :: Text, serverChans :: ServerChans, logs :: Bool }
 
