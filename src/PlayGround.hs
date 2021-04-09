@@ -48,7 +48,17 @@ nearCells SixthCell  = [FifthCell]
 
 data PlayGroundState = FirstUser | SecondUser | Start | UserDisconnected UserMessage Client Client | EndGame deriving Eq
 
+instance Show PlayGroundState where
+  show FirstUser  = "FirstUser"
+  show SecondUser = "SecondUser"
+  show Start      = "Start"
+  show (UserDisconnected msg _ _) = "UserDisconnected: " ++ show msg
+  show EndGame    = "EndGame"
+
 data PlayGround = PlayGround { _field :: Field, _state :: PlayGroundState, _score :: (Int,Int), _questions :: [Question] }
+
+instance Show PlayGround where
+  show (PlayGround field state score _) = "PlayGround:\nfield = " ++ show field ++ "\nstate = " ++ show state ++ "\nscore = " ++ show score
 
 makeLenses ''PlayGround
 
@@ -149,10 +159,12 @@ sendGameEndMessage = do
   if | score1 > score2 -> do
          liftIO $ writeMsg (client1^.channels) $ GameEnd YouWin  score1
          liftIO $ writeMsg (client2^.channels) $ GameEnd YouLose score1
-     | score2 > score1 -> do
+     | score1 < score2 -> do
          liftIO $ writeMsg (client2^.channels) $ GameEnd YouWin  score2
          liftIO $ writeMsg (client1^.channels) $ GameEnd YouLose score2
      | otherwise       -> broadcast $ GameEnd Draw score1
+  liftSW . toLobby $ client1
+  liftSW . toLobby $ client2
 
 setCell :: CellId -> PlayGroundWorker ()
 setCell cell = do
@@ -160,9 +172,10 @@ setCell cell = do
   client <- curClient
   field.cellLens cell .= curState
   newScore <- plusScore 10
-  broadcast $ LobbyUpdate cell newScore (client^.user.to userUsername)
   filled <- allCellsFilled
-  when filled $ state .= EndGame
+  if filled
+    then changeState EndGame
+    else broadcast $ LobbyUpdate cell newScore (client^.user.to userUsername)
 
 data LoopState a = End a | EndStatus StatusType a | Next StatusType
 
@@ -211,7 +224,15 @@ tryAction :: PlayGroundWorker () -> PlayGroundWorker ()
 tryAction action = mplus action $ do
   client  <- curClient
   client' <- anotherClient
-  state .= UserDisconnected LogOut client client'
+  changeState $ UserDisconnected LogOut client client'
+
+changeState :: PlayGroundState -> PlayGroundWorker ()
+changeState newState = do
+  curState <- use state
+  case curState of
+    EndGame             -> return ()
+    UserDisconnected {} -> return ()
+    _ -> state .= newState
 
 playGroundLoop :: PlayGroundWorker ()
 playGroundLoop = do
@@ -219,12 +240,14 @@ playGroundLoop = do
   let onDestroy = liftSW . putLog $ "Playground: destroyed"
   flip mplus onDestroy $ forever $ do
     curState <- use state
-    liftSW . putLog $ "PlayGround: new state"
+    playGround <- get
+    liftSW . putLog $ "PlayGround: new state: " ++ show curState
+    liftSW . putLog $ "PlayGround: state: " ++ show playGround
     case curState of
-      Start      -> state .= FirstUser
-      FirstUser  -> tryAction $ askUser >> (state .= SecondUser)
-      SecondUser -> tryAction $ askUser >> (state .= FirstUser)
-      EndGame    -> sendGameEndMessage
+      Start      -> changeState FirstUser
+      FirstUser  -> tryAction $ askUser >> changeState SecondUser
+      SecondUser -> tryAction $ askUser >> changeState FirstUser
+      EndGame    -> sendGameEndMessage >> mzero
       UserDisconnected msg client client' -> do
         liftSW . toAuth $ DisconnectMsg msg client
         liftIO . writeMsg (client'^.channels) $ Status OpponentDisconnected
