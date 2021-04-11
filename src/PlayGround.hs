@@ -158,10 +158,10 @@ sendGameEndMessage = do
   (score1, score2) <- use score
   if | score1 > score2 -> do
          liftIO $ writeMsg (client1^.channels) $ GameEnd YouWin  score1
-         liftIO $ writeMsg (client2^.channels) $ GameEnd YouLose score1
+         liftIO $ writeMsg (client2^.channels) $ GameEnd YouLose score2
      | score1 < score2 -> do
          liftIO $ writeMsg (client2^.channels) $ GameEnd YouWin  score2
-         liftIO $ writeMsg (client1^.channels) $ GameEnd YouLose score2
+         liftIO $ writeMsg (client1^.channels) $ GameEnd YouLose score1
      | otherwise       -> broadcast $ GameEnd Draw score1
   liftSW . toLobby $ client1
   liftSW . toLobby $ client2
@@ -171,7 +171,7 @@ setCell cell = do
   curState <- use state
   client <- curClient
   field.cellLens cell .= curState
-  newScore <- plusScore 10
+  newScore <- plusScore 100
   filled <- allCellsFilled
   if filled
     then changeState EndGame
