@@ -16,6 +16,7 @@ createAdmin :: WS.Connection -> ServerWorker ()
 createAdmin conn = flip evalStateT False $ websocketThread conn onCreate onDestroy $ do
   maybeMsg <- decode <$> liftIO (WS.receiveData conn)
   withMaybe maybeMsg (liftIO $ WS.sendTextData conn . encode $ Status BadMessageStructure) $ \msg -> do
+    lift . putLog $ "Admin: message: " ++ show msg
     adminAuthorized <- get
     if adminAuthorized then do
       serverAnswser <- lift $ adminAction msg
@@ -38,17 +39,19 @@ toAdminQuestion :: Question -> AdminQuestion
 toAdminQuestion (Question text _ answer answers) = AdminQuestion text answer answers
 
 adminAction :: AdminMessage -> ServerWorker AdminServerMessage
-adminAction GetTopicList = withDB $ do
-  topics <- selectList [] []
-  adminTopics <- forM topics $ \(Entity key topic) -> do
-    questions <- selectList [QuestionTopicId ==. key] []
-    return $ toAdminTopic topic (map entityVal questions)
+adminAction GetTopicList = do
+  adminTopics <- withDB $ do
+    topics <- selectList [] []
+    forM topics $ \(Entity key topic) -> do
+      questions <- selectList [QuestionTopicId ==. key] []
+      return $ toAdminTopic topic (map entityVal questions)
+  putLog $ show $ TopicList adminTopics
   return $ TopicList adminTopics
 adminAction (DeleteTopic title) = withDB $ do
   topic <- entityKey <$$> getBy (UniqueTitle title)
   withMaybe topic (return $ Status NotFound) $ \key -> do
-    delete key
     deleteWhere [QuestionTopicId ==. key]
+    delete key
     return $ Status Ok
 adminAction (EditTopic (AdminTopic title info questions)) = withDB $ do
   maybeTopic <- entityKey <$$> getBy (UniqueTitle title)

@@ -54,6 +54,9 @@ authTest = describe "Admin authorization" $ do
   it "should connect admin to server" $ do
     msg <- request client $ Authorization "admin" "admin"
     msg `shouldBe` Status Ok
+  it "should reject second authorization" $ do
+    msg <- request client $ Authorization "admin" "admin"
+    msg `shouldBe` Status UnexpectedMessageType
   it "should get list of topics on server" $ do
     topics <- request client GetTopicList
     topics `shouldBe` TopicList [programmingTopic]
